@@ -155,27 +155,41 @@ namespace SpreadCube_WinForms
                 return;
             var g = e.Graphics;
 
-            Pen penBlack = new Pen(Color.Black);
+            Pen penBlack = new(Color.Black);
 
-            var horizontalLines = p.Height / activeCell.Height;
+            //evenHeight is the maximal height, that is evenly divisible by cell height, that can fit inside the panel.
+            var evenHeight = p.Height - p.Height % activeCell.Height;
+            // see evenHeight comment
+            var evenWidth = p.Width - p.Width % activeCell.Width;
+            var nrOfHorizontalLines = evenHeight / activeCell.Height;
             var height = 0;
-            for (int i = 0; i < horizontalLines; i++)
+            for (int i = 0; i <= nrOfHorizontalLines; i++)
             {
-                g.DrawLine(penBlack, new Point(0, height), new Point(p.Width, height));
+                g.DrawLine(penBlack, new Point(0, height), new Point(evenWidth, height));
                 height += activeCell.Height;
             }
 
-            var verticalLines = p.Width / activeCell.Width + 2;
+            var nrOfVerticalLines = evenWidth / activeCell.Width;
             var width = 0;
-            for (int i = 0; i < verticalLines; i++)
+            for (int i = 0; i <= nrOfVerticalLines; i++)
             {
-                g.DrawLine(penBlack, new Point(width, 0), new Point(width, p.Height));
+                g.DrawLine(penBlack, new Point(width, 0), new Point(width, evenHeight));
                 width += activeCell.Width;
             }
         }
 
         void pnl_Spreadsheet__MouseDown(object? sender, MouseEventArgs e)
         {
+            //evenHeight is the maximal height, that is evenly divisible by cell height, that can fit inside the panel.
+            int pHeight = pnl_Spreadsheet.Height;
+            var evenHeight = pHeight - pHeight % activeCell.Height;
+            if (e.Y > evenHeight)
+                return;
+            // see evenHeight comment
+            int pWidth = pnl_Spreadsheet.Width;
+            var evenWidth = pWidth - pWidth % activeCell.Width;
+            if (e.X > evenWidth)
+                return;
             //Figure out the X and Y of the containing cell:
             var xCoord = e.X - e.X % activeCell.Width;
             var yCoord = e.Y - e.Y % activeCell.Height;
