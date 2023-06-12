@@ -1,0 +1,2 @@
+﻿It is sometimes necessary to remove event handlers before deleting controls:
+https://stackoverflow.com/questions/1076401/do-i-need-to-remove-event-subscriptions-from-objects-before-they-are-orphaned/1076469
