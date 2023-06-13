@@ -1,6 +1,6 @@
 ﻿namespace SpreadCube_WinForms
 {
-    partial class frm_main
+    partial class Frm_main
     {
         /// <summary>
         ///  Required designer variable.
@@ -30,13 +30,13 @@
         {
             this.SuspendLayout();
             // 
-            // frm_main
+            // Frm_main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(10F, 25F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoSize = true;
             this.ClientSize = new System.Drawing.Size(844, 450);
-            this.Name = "frm_main";
+            this.Name = "Frm_main";
             this.Text = "Form1";
             this.ResumeLayout(false);
 

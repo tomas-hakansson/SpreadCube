@@ -3,22 +3,20 @@ using System.IO.Enumeration;
 
 namespace SpreadCube_WinForms
 {
-    public partial class frm_main : Form
+    public partial class Frm_main : Form
     {
         List<TextBox> _cells = new();
         FlowLayoutPanel flp_MainGui;
         Button btn_Test;
         Panel pnl_Spreadsheet;
-        TextBox activeCell;
+        TextBox tb_activeCell;
         //TableLayoutPanel tlp_TextBoxes;
 
-        public frm_main()
+        public Frm_main()
         {
             //Anders tips:
             //  ha en panel som huvudcontainer (för scrollbars) och rita kalkylbladet direkt i GDI+.
             //  bara ha *en* textbox som man flyttar omkring där den behövs.
-
-
 
             //initialize generated components:
             InitializeComponent();
@@ -53,7 +51,7 @@ namespace SpreadCube_WinForms
             btn_Test.Text = "click to test";
             btn_Test.TabIndex = 1;
             btn_Test.AutoSize = true;
-            btn_Test.Click += new EventHandler(btn_Test__Click);
+            btn_Test.Click += new EventHandler(Btn_Test__Click);
             flp_MainGui.Controls.Add(btn_Test);
 
             //this.button1.Location = new System.Drawing.Point(294, 34);
@@ -70,19 +68,21 @@ namespace SpreadCube_WinForms
             pnl_Spreadsheet.Name = nameof(pnl_Spreadsheet);
             pnl_Spreadsheet.TabIndex = 2;
             pnl_Spreadsheet.Size = new Size(Width, Height);
-            pnl_Spreadsheet.Paint += new PaintEventHandler(pnl_Spreadsheet__Paint);
-            pnl_Spreadsheet.MouseDown += new MouseEventHandler(pnl_Spreadsheet__MouseDown);
+            pnl_Spreadsheet.Paint += new PaintEventHandler(Pnl_Spreadsheet__Paint);
+            pnl_Spreadsheet.MouseDown += new MouseEventHandler(Pnl_Spreadsheet__MouseDown);
             flp_MainGui.Controls.Add(pnl_Spreadsheet);
 
             // a textbox on our painted panel:
 
-            activeCell = new();
-            activeCell.Name = nameof(activeCell);
-            activeCell.AutoSize = false;
-            activeCell.Location = new Point(0, 0);
+            tb_activeCell = new();
+            tb_activeCell.Name = nameof(tb_activeCell);
+            tb_activeCell.AutoSize = false;
+            tb_activeCell.Location = new Point(0, 0);
             //activeCell.Size = new Size(50, 100);
             //activeCell.Visible = false;
-            pnl_Spreadsheet.Controls.Add(activeCell);
+            tb_activeCell.LostFocus += new EventHandler(Tb_activeCell__LostFocus);
+            tb_activeCell.LocationChanged += new EventHandler(Tb_activeCell__LocationChanged);
+            pnl_Spreadsheet.Controls.Add(tb_activeCell);
 
             // a table layout panel for our spreadsheet:
             //tlp_TextBoxes = new TableLayoutPanel();
@@ -143,63 +143,91 @@ namespace SpreadCube_WinForms
             //}
         }
 
-        void btn_Test__Click(object? sender, EventArgs e)
+        void Btn_Test__Click(object? sender, EventArgs e)
         {
-            MessageBox.Show(activeCell.Text);
+            MessageBox.Show(tb_activeCell.Text);
         }
 
-        void pnl_Spreadsheet__Paint(object? sender, PaintEventArgs e)
+        void Pnl_Spreadsheet__Paint(object? sender, PaintEventArgs e)
         {
-            var p = sender as Panel;
-            if (p == null)
+            if (sender is not Panel p)
                 return;
             var g = e.Graphics;
 
             Pen penBlack = new(Color.Black);
 
             //evenHeight is the maximal height, that is evenly divisible by cell height, that can fit inside the panel.
-            var evenHeight = p.Height - p.Height % activeCell.Height;
+            var evenHeight = p.Height - p.Height % tb_activeCell.Height;
             // see evenHeight comment
-            var evenWidth = p.Width - p.Width % activeCell.Width;
-            var nrOfHorizontalLines = evenHeight / activeCell.Height;
+            var evenWidth = p.Width - p.Width % tb_activeCell.Width;
+
+            var nrOfHorizontalLines = evenHeight / tb_activeCell.Height;
             var height = 0;
             for (int i = 0; i <= nrOfHorizontalLines; i++)
             {
                 g.DrawLine(penBlack, new Point(0, height), new Point(evenWidth, height));
-                height += activeCell.Height;
+                height += tb_activeCell.Height;
             }
 
-            var nrOfVerticalLines = evenWidth / activeCell.Width;
+            var nrOfVerticalLines = evenWidth / tb_activeCell.Width;
             var width = 0;
             for (int i = 0; i <= nrOfVerticalLines; i++)
             {
                 g.DrawLine(penBlack, new Point(width, 0), new Point(width, evenHeight));
-                width += activeCell.Width;
+                width += tb_activeCell.Width;
             }
         }
 
-        void pnl_Spreadsheet__MouseDown(object? sender, MouseEventArgs e)
+        void Pnl_Spreadsheet__MouseDown(object? sender, MouseEventArgs e)
         {
             //evenHeight is the maximal height, that is evenly divisible by cell height, that can fit inside the panel.
             int pHeight = pnl_Spreadsheet.Height;
-            var evenHeight = pHeight - pHeight % activeCell.Height;
+            var evenHeight = pHeight - pHeight % tb_activeCell.Height;
+            //if the mouse cursor is outside of the grid:
             if (e.Y > evenHeight)
                 return;
             // see evenHeight comment
             int pWidth = pnl_Spreadsheet.Width;
-            var evenWidth = pWidth - pWidth % activeCell.Width;
+            var evenWidth = pWidth - pWidth % tb_activeCell.Width;
+            //if the mouse cursor is outside of the grid:
             if (e.X > evenWidth)
                 return;
             //Figure out the X and Y of the containing cell:
-            var xCoord = e.X - e.X % activeCell.Width;
-            var yCoord = e.Y - e.Y % activeCell.Height;
+            var xCoord = e.X - e.X % tb_activeCell.Width;
+            var yCoord = e.Y - e.Y % tb_activeCell.Height;
             //Move the textbox there and turn it visible:
-            activeCell.Visible = false;
-            Point newTBlocation = new Point(xCoord, yCoord);
-            activeCell.Location = newTBlocation;
-            activeCell.Clear();
-            activeCell.Visible = true;
-            activeCell.Focus();
+            tb_activeCell.Visible = false;
+            tb_activeCell.Location = new Point(xCoord, yCoord);
+            tb_activeCell.Clear();
+            tb_activeCell.Visible = true;
+            tb_activeCell.Focus();
         }
+
+        string previousText = string.Empty;
+        Point previousTextLocation;
+        void Tb_activeCell__LostFocus(object? sender, EventArgs e)
+        {
+            if (sender is not TextBox tb)
+                return;
+            if (!string.IsNullOrWhiteSpace(tb.Text))
+            {
+                previousText = tb.Text;
+                previousTextLocation = Add(tb.Location, tb.GetPositionFromCharIndex(0));
+            }
+        }
+
+        void Tb_activeCell__LocationChanged(object? sender, EventArgs e)
+        {
+            if (!string.IsNullOrWhiteSpace(previousText))
+            {
+                var pg = pnl_Spreadsheet.CreateGraphics();
+                Brush brush = new SolidBrush(Color.Black);
+                pg.DrawString(previousText, Font, brush, previousTextLocation);
+                previousText = string.Empty;
+            }
+        }
+
+        Point Add(Point a, Point b) =>
+            new Point(a.X + b.X, a.Y + b.Y);
     }
 }

@@ -1,2 +1,8 @@
-﻿It is sometimes necessary to remove event handlers before deleting controls:
-https://stackoverflow.com/questions/1076401/do-i-need-to-remove-event-subscriptions-from-objects-before-they-are-orphaned/1076469
+﻿Anderstips:
+    It is sometimes necessary to remove event handlers before deleting controls:
+    https://stackoverflow.com/questions/1076401/do-i-need-to-remove-event-subscriptions-from-objects-before-they-are-orphaned/1076469
+
+    *"Sen när det gäller tangenttryck så notera att det finns parametrar i KeyDown-eventet för att markera som Handled så att inte 
+        basklassen fortsätter att agera på tangenttrycket om inte så önskas, och Supress för att tala om att tangenttrycket måste 
+        rensas från event-pumpen så att ingen annan control agerar på den.
+    Tab, Enter och Escape är exempel på tangenter som flera controls kan vara intresserade av."
