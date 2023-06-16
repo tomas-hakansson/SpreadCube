@@ -6,11 +6,12 @@ namespace SpreadCube_WinForms
     public partial class Frm_main : Form
     {
         List<TextBox> _cells = new();
-        FlowLayoutPanel flp_MainGui;
-        Button btn_Test;
-        Panel pnl_Spreadsheet;
-        TextBox tb_activeCell;
-        //TableLayoutPanel tlp_TextBoxes;
+        FlowLayoutPanel _flp_MainGui;
+        Button _btn_Test;
+        Panel _pnl_Spreadsheet;
+        TextBox _tb_activeCell;
+
+        BehindThe2DView _core;
 
         public Frm_main()
         {
@@ -33,26 +34,26 @@ namespace SpreadCube_WinForms
 
 
             // a flow layout panel frow top to bottom to contain or top level controls:
-            flp_MainGui = new FlowLayoutPanel();
-            flp_MainGui.Location = new Point(0, 0);
+            _flp_MainGui = new FlowLayoutPanel();
+            _flp_MainGui.Location = new Point(0, 0);
             //flp_MainGui.Size = new Size(Width, Height);
-            flp_MainGui.Name = nameof(flp_MainGui);
-            flp_MainGui.AutoSize = true;
+            _flp_MainGui.Name = nameof(_flp_MainGui);
+            _flp_MainGui.AutoSize = true;
             //flp_MainGui.Dock = DockStyle.Fill;
             //Note: both AutoSize and DockStyle.Fill have the same effect in this case.
             //flp_MainGui.Size = new Size(100, 100);
-            flp_MainGui.TabIndex = 0;
-            flp_MainGui.FlowDirection = FlowDirection.TopDown;
-            Controls.Add(flp_MainGui);
+            _flp_MainGui.TabIndex = 0;
+            _flp_MainGui.FlowDirection = FlowDirection.TopDown;
+            Controls.Add(_flp_MainGui);
 
             // a button for testing:
-            btn_Test = new Button();
-            btn_Test.Name = nameof(btn_Test);
-            btn_Test.Text = "click to test";
-            btn_Test.TabIndex = 1;
-            btn_Test.AutoSize = true;
-            btn_Test.Click += new EventHandler(Btn_Test__Click);
-            flp_MainGui.Controls.Add(btn_Test);
+            _btn_Test = new Button();
+            _btn_Test.Name = nameof(_btn_Test);
+            _btn_Test.Text = "click to test";
+            _btn_Test.TabIndex = 1;
+            _btn_Test.AutoSize = true;
+            _btn_Test.Click += new EventHandler(Btn_Test__Click);
+            _flp_MainGui.Controls.Add(_btn_Test);
 
             //this.button1.Location = new System.Drawing.Point(294, 34);
             //this.button1.Name = "button1";
@@ -64,25 +65,26 @@ namespace SpreadCube_WinForms
 
             // a panel that we can draw our spreadsheet on:
 
-            pnl_Spreadsheet = new();
-            pnl_Spreadsheet.Name = nameof(pnl_Spreadsheet);
-            pnl_Spreadsheet.TabIndex = 2;
-            pnl_Spreadsheet.Size = new Size(Width, Height);
-            pnl_Spreadsheet.Paint += new PaintEventHandler(Pnl_Spreadsheet__Paint);
-            pnl_Spreadsheet.MouseDown += new MouseEventHandler(Pnl_Spreadsheet__MouseDown);
-            flp_MainGui.Controls.Add(pnl_Spreadsheet);
+            //ToDo: figure out how to scroll bar.
+            _pnl_Spreadsheet = new();
+            _pnl_Spreadsheet.Name = nameof(_pnl_Spreadsheet);
+            _pnl_Spreadsheet.TabIndex = 2;
+            _pnl_Spreadsheet.Size = new Size(Width, Height);
+            _pnl_Spreadsheet.Paint += new PaintEventHandler(Pnl_Spreadsheet__Paint);
+            _pnl_Spreadsheet.MouseDown += new MouseEventHandler(Pnl_Spreadsheet__MouseDown);
+            _flp_MainGui.Controls.Add(_pnl_Spreadsheet);
 
             // a textbox on our painted panel:
 
-            tb_activeCell = new();
-            tb_activeCell.Name = nameof(tb_activeCell);
-            tb_activeCell.AutoSize = false;
-            tb_activeCell.Location = new Point(0, 0);
+            _tb_activeCell = new();
+            _tb_activeCell.Name = nameof(_tb_activeCell);
+            _tb_activeCell.AutoSize = false;
+            _tb_activeCell.Location = new Point(0, 0);
             //activeCell.Size = new Size(50, 100);
-            //activeCell.Visible = false;
-            tb_activeCell.LostFocus += new EventHandler(Tb_activeCell__LostFocus);
-            tb_activeCell.LocationChanged += new EventHandler(Tb_activeCell__LocationChanged);
-            pnl_Spreadsheet.Controls.Add(tb_activeCell);
+            _tb_activeCell.Visible = false; //ToDo: have this placed in the proper place, automatically.
+            _tb_activeCell.LostFocus += new EventHandler(Tb_activeCell__LostFocus);
+            _tb_activeCell.LocationChanged += new EventHandler(Tb_activeCell__LocationChanged);
+            _pnl_Spreadsheet.Controls.Add(_tb_activeCell);
 
             // a table layout panel for our spreadsheet:
             //tlp_TextBoxes = new TableLayoutPanel();
@@ -92,11 +94,11 @@ namespace SpreadCube_WinForms
             //flp_MainGui.Controls.Add(tlp_TextBoxes);
 
             // our code behind:
-            BehindThe2DView core = new();
-            Category[] hc = core.HorizontalCategories;
-            Category[] vc = core.VerticalCategories;
-            Category[] hic = core.HiddenCategories;
-            Cell[,] cs = core.VisibleCells;
+            _core = new();
+            Category[] hc = _core.HorizontalCategories;
+            Category[] vc = _core.VerticalCategories;
+            Category[] hic = _core.HiddenCategories;
+            Cell[,] cs = _core.VisibleCells;
 
             //  cells:
 
@@ -145,62 +147,39 @@ namespace SpreadCube_WinForms
 
         void Btn_Test__Click(object? sender, EventArgs e)
         {
-            MessageBox.Show(tb_activeCell.Text);
+            MessageBox.Show(_tb_activeCell.Text);
         }
 
         void Pnl_Spreadsheet__Paint(object? sender, PaintEventArgs e)
         {
-            if (sender is not Panel p)
-                return;
-            var g = e.Graphics;
-
-            Pen penBlack = new(Color.Black);
-
-            //evenHeight is the maximal height, that is evenly divisible by cell height, that can fit inside the panel.
-            var evenHeight = p.Height - p.Height % tb_activeCell.Height;
-            // see evenHeight comment
-            var evenWidth = p.Width - p.Width % tb_activeCell.Width;
-
-            var nrOfHorizontalLines = evenHeight / tb_activeCell.Height;
-            var height = 0;
-            for (int i = 0; i <= nrOfHorizontalLines; i++)
-            {
-                g.DrawLine(penBlack, new Point(0, height), new Point(evenWidth, height));
-                height += tb_activeCell.Height;
-            }
-
-            var nrOfVerticalLines = evenWidth / tb_activeCell.Width;
-            var width = 0;
-            for (int i = 0; i <= nrOfVerticalLines; i++)
-            {
-                g.DrawLine(penBlack, new Point(width, 0), new Point(width, evenHeight));
-                width += tb_activeCell.Width;
-            }
+            PaintSpreadsheet();
         }
 
         void Pnl_Spreadsheet__MouseDown(object? sender, MouseEventArgs e)
         {
+            //ToDo: make the failfast depend on _core data:
+
             //evenHeight is the maximal height, that is evenly divisible by cell height, that can fit inside the panel.
-            int pHeight = pnl_Spreadsheet.Height;
-            var evenHeight = pHeight - pHeight % tb_activeCell.Height;
+            int pHeight = _pnl_Spreadsheet.Height;
+            var evenHeight = pHeight - pHeight % _tb_activeCell.Height;
             //if the mouse cursor is outside of the grid:
             if (e.Y > evenHeight)
                 return;
             // see evenHeight comment
-            int pWidth = pnl_Spreadsheet.Width;
-            var evenWidth = pWidth - pWidth % tb_activeCell.Width;
+            int pWidth = _pnl_Spreadsheet.Width;
+            var evenWidth = pWidth - pWidth % _tb_activeCell.Width;
             //if the mouse cursor is outside of the grid:
             if (e.X > evenWidth)
                 return;
             //Figure out the X and Y of the containing cell:
-            var xCoord = e.X - e.X % tb_activeCell.Width;
-            var yCoord = e.Y - e.Y % tb_activeCell.Height;
+            var xCoord = e.X - e.X % _tb_activeCell.Width;
+            var yCoord = e.Y - e.Y % _tb_activeCell.Height;
             //Move the textbox there and turn it visible:
-            tb_activeCell.Visible = false;
-            tb_activeCell.Location = new Point(xCoord, yCoord);
-            tb_activeCell.Clear();
-            tb_activeCell.Visible = true;
-            tb_activeCell.Focus();
+            _tb_activeCell.Visible = false;
+            _tb_activeCell.Location = new Point(xCoord, yCoord);
+            _tb_activeCell.Clear();
+            _tb_activeCell.Visible = true;
+            _tb_activeCell.Focus();
         }
 
         string previousText = string.Empty;
@@ -212,7 +191,7 @@ namespace SpreadCube_WinForms
             if (!string.IsNullOrWhiteSpace(tb.Text))
             {
                 previousText = tb.Text;
-                previousTextLocation = Add(tb.Location, tb.GetPositionFromCharIndex(0));
+                previousTextLocation = tb.Location;// Add(tb.Location, tb.GetPositionFromCharIndex(0));
             }
         }
 
@@ -220,10 +199,100 @@ namespace SpreadCube_WinForms
         {
             if (!string.IsNullOrWhiteSpace(previousText))
             {
-                var pg = pnl_Spreadsheet.CreateGraphics();
+                var pg = _pnl_Spreadsheet.CreateGraphics();
                 Brush brush = new SolidBrush(Color.Black);
                 pg.DrawString(previousText, Font, brush, previousTextLocation);
+
+                //List<(string category, string index)> place = new() { ("Months", "Mar"), ("Years", "2021") };
+                var coordinates = PointToCoordinates(previousTextLocation);
+                _core.SetCellContent(previousText, coordinates);
+
                 previousText = string.Empty;
+            }
+        }
+
+        private List<(string category, string index)> PointToCoordinates(Point point)
+        {//Ponder: use set (HashSet) instead of sequences.
+            //ToDo: Need to store the cat:index order directly and NOT rely on dictionary preserving it.
+            var hIndex = (point.X - point.X % _tb_activeCell.Width) / _tb_activeCell.Width;
+            var hCatIndex = _core.HorizontalCategories.First().IndexToCells.Keys.ToArray()[hIndex - 1];
+            var vIndex = (point.Y - point.Y % _tb_activeCell.Height) / _tb_activeCell.Height;
+            var vcatIndex = _core.VerticalCategories.First().IndexToCells.Keys.ToArray()[vIndex - 1];
+            //point -> numeric indices -> category indices
+
+            return new() { (_core.HorizontalCategories.First().Name, hCatIndex), (_core.VerticalCategories.First().Name, vcatIndex) };
+        }
+
+        private void PaintSpreadsheet()
+        {
+            var p = _pnl_Spreadsheet;
+            var g = p.CreateGraphics();
+            g.Clear(BackColor);
+            Pen penBlack = new(Color.Black);
+
+            //Note: IMPORTANT ASSUMPTION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            //  We are assuming here that the horizontal and vertical has only *one* category each. This WILL break later.
+
+            var hcat = _core.HorizontalCategories;
+            var hIndices = hcat[0].IndexToCells.Keys;
+            var vcat = _core.VerticalCategories;
+            var vIndices = vcat[0].IndexToCells.Keys;
+            var visCells = _core.VisibleCells;
+
+            var tbWidth = _tb_activeCell.Width;
+            var tbHeigth = _tb_activeCell.Height;
+
+            //Draw the horizontal categories:
+            var width = tbWidth;
+            foreach (var index in hIndices)
+            {
+                Brush brush = new SolidBrush(Color.Black);
+                g.DrawString(index, Font, brush, new Point(width, 0));
+                width += tbWidth;
+            }
+
+            //Draw the vertical lines:
+            var evenHeight = (vIndices.Count + 1) * tbHeigth;
+            var verticalCount = hIndices.Count + 1;
+            width = tbWidth;
+            for (int i = 0; i < verticalCount; i++)
+            {
+                g.DrawLine(penBlack, new Point(width, tbHeigth), new Point(width, evenHeight));
+                width += tbWidth;
+            }
+
+            //Draw the vertical categories:
+            var height = tbHeigth;
+            foreach (var index in vIndices)
+            {
+                Brush brush = new SolidBrush(Color.Black);
+                g.DrawString(index, Font, brush, new Point(0, height));
+                height += tbHeigth;
+            }
+
+            //Draw the horizontal lines:
+            var evenWidth = (hIndices.Count + 1) * tbWidth;
+            var horizontalCount = vIndices.Count + 1;
+            height = tbHeigth;
+            for (int i = 0; i < horizontalCount; i++)
+            {
+                g.DrawLine(penBlack, new Point(tbWidth, height), new Point(evenWidth, height));
+                height += tbHeigth;
+            }
+
+            //Draw the cell contents:
+            height = tbHeigth;
+            for (int row = 0; row < visCells.GetLength(1); row++)
+            {
+                width = tbWidth;
+                for (int col = 0; col < visCells.GetLength(0); col++)
+                {
+                    Brush brush = new SolidBrush(Color.Black);
+                    var cellContent = visCells[col, row].TextContent;
+                    g.DrawString(cellContent, Font, brush, new Point(width, height));
+                    width += tbWidth;
+                }
+                height += tbHeigth;
             }
         }
 

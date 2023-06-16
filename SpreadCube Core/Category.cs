@@ -2,12 +2,20 @@
 
 public class Category
 {
-    public string Name { get; }
-    public string[] Vectors { get; }
+    public string Name { get; private set; }
+    public Dictionary<string, List<Guid>> IndexToCells { get; private set; }
 
-    public Category(string name, string[] vectors)
+    public Category(string name)
     {
         Name = name;
-        Vectors = vectors;
+        IndexToCells = new Dictionary<string, List<Guid>>();
+    }
+
+    public void AddIndex(string index, Cell cell)
+    {
+        if (IndexToCells.ContainsKey(index))
+            IndexToCells[index].Add(cell.Id);
+        else
+            IndexToCells[index] = new List<Guid>() { cell.Id };
     }
 }
