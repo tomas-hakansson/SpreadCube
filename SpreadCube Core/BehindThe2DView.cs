@@ -11,7 +11,7 @@ public class BehindThe2DView
 
     public BehindThe2DView()
     {
-        string[] monthsIndices = A("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug");
+        string[] monthsIndices = A("Jan", "Feb", "Mar", "Apr", "May", "Jun");
         var colCount = monthsIndices.Length;
         Category months = new("Months");
         string[] yearsIndices = A("2019", "2020", "2021", "2022", "2023");
@@ -43,7 +43,10 @@ public class BehindThe2DView
 
     static T[] A<T>(params T[] arg) => arg;
 
-    public void SetCellContent(string textContent, List<(string category, string index)> coordinates)
+    public void SetCellContent(string textContent, List<(string category, string index)> coordinates) =>
+        GetCell(coordinates).TextContent = textContent;
+
+    public Cell GetCell(List<(string category, string index)> coordinates)
     {
         //Note: The categories are the dimensions. This method must be provided with coordinates in *all* dimensions
         //  to ensure that they point to a single cell.
@@ -70,7 +73,7 @@ public class BehindThe2DView
         var cellMatch = _allCells.Where(c => c.Id == cellId);
         if (cellMatch.Count() != 1)
             throw new Exception($"In method: {nameof(SetCellContent)} - Invalid cell state.");
-        cellMatch.First().TextContent = textContent;
+        return cellMatch.First();
     }
 
     List<Guid> GetCellIds(string category, string index)

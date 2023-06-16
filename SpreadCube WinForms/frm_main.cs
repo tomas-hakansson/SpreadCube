@@ -177,13 +177,12 @@ namespace SpreadCube_WinForms
             //Move the textbox there and turn it visible:
             _tb_activeCell.Visible = false;
             _tb_activeCell.Location = new Point(xCoord, yCoord);
-            _tb_activeCell.Clear();
             _tb_activeCell.Visible = true;
             _tb_activeCell.Focus();
         }
 
         string previousText = string.Empty;
-        Point previousTextLocation;
+        Point previousTextBoxLocation;
         void Tb_activeCell__LostFocus(object? sender, EventArgs e)
         {
             if (sender is not TextBox tb)
@@ -191,34 +190,41 @@ namespace SpreadCube_WinForms
             if (!string.IsNullOrWhiteSpace(tb.Text))
             {
                 previousText = tb.Text;
-                previousTextLocation = tb.Location;// Add(tb.Location, tb.GetPositionFromCharIndex(0));
+                previousTextBoxLocation = tb.Location;// Add(tb.Location, tb.GetPositionFromCharIndex(0));
             }
         }
 
         void Tb_activeCell__LocationChanged(object? sender, EventArgs e)
         {
+            List<(string category, string index)> coordinates = new();
             if (!string.IsNullOrWhiteSpace(previousText))
             {
+                //Note: Write the TextBox previous value in its previous location:
                 var pg = _pnl_Spreadsheet.CreateGraphics();
                 Brush brush = new SolidBrush(Color.Black);
-                pg.DrawString(previousText, Font, brush, previousTextLocation);
+                pg.DrawString(previousText, Font, brush, previousTextBoxLocation);
 
-                //List<(string category, string index)> place = new() { ("Months", "Mar"), ("Years", "2021") };
-                var coordinates = PointToCoordinates(previousTextLocation);
+                //Note: Update the cell value of the previous location:
+                coordinates = PointToCoordinates(previousTextBoxLocation);
                 _core.SetCellContent(previousText, coordinates);
 
                 previousText = string.Empty;
             }
+
+            //Note: Use the current text location to set the Text of the text box location:
+            coordinates = PointToCoordinates(_tb_activeCell.Location);
+            var cell = _core.GetCell(coordinates);
+            _tb_activeCell.Clear();
+            _tb_activeCell.Text = cell.TextContent;
         }
 
-        private List<(string category, string index)> PointToCoordinates(Point point)
+        List<(string category, string index)> PointToCoordinates(Point point)
         {//Ponder: use set (HashSet) instead of sequences.
             //ToDo: Need to store the cat:index order directly and NOT rely on dictionary preserving it.
             var hIndex = (point.X - point.X % _tb_activeCell.Width) / _tb_activeCell.Width;
             var hCatIndex = _core.HorizontalCategories.First().IndexToCells.Keys.ToArray()[hIndex - 1];
             var vIndex = (point.Y - point.Y % _tb_activeCell.Height) / _tb_activeCell.Height;
             var vcatIndex = _core.VerticalCategories.First().IndexToCells.Keys.ToArray()[vIndex - 1];
-            //point -> numeric indices -> category indices
 
             return new() { (_core.HorizontalCategories.First().Name, hCatIndex), (_core.VerticalCategories.First().Name, vcatIndex) };
         }
@@ -242,7 +248,19 @@ namespace SpreadCube_WinForms
             var tbWidth = _tb_activeCell.Width;
             var tbHeigth = _tb_activeCell.Height;
 
-            //Draw the horizontal categories:
+            //Note: Draw the vertical category lines:
+            //Note: Draw the horizontal category lines:
+
+            //Note: Draw the vertical categories:
+            var height = tbHeigth;
+            foreach (var index in vIndices)
+            {
+                Brush brush = new SolidBrush(Color.Black);
+                g.DrawString(index, Font, brush, new Point(0, height));
+                height += tbHeigth;
+            }
+
+            //Note: Draw the horizontal categories:
             var width = tbWidth;
             foreach (var index in hIndices)
             {
@@ -251,7 +269,7 @@ namespace SpreadCube_WinForms
                 width += tbWidth;
             }
 
-            //Draw the vertical lines:
+            //Note: Draw the vertical cell lines:
             var evenHeight = (vIndices.Count + 1) * tbHeigth;
             var verticalCount = hIndices.Count + 1;
             width = tbWidth;
@@ -261,16 +279,7 @@ namespace SpreadCube_WinForms
                 width += tbWidth;
             }
 
-            //Draw the vertical categories:
-            var height = tbHeigth;
-            foreach (var index in vIndices)
-            {
-                Brush brush = new SolidBrush(Color.Black);
-                g.DrawString(index, Font, brush, new Point(0, height));
-                height += tbHeigth;
-            }
-
-            //Draw the horizontal lines:
+            //Note: Draw the horizontal cell lines:
             var evenWidth = (hIndices.Count + 1) * tbWidth;
             var horizontalCount = vIndices.Count + 1;
             height = tbHeigth;
@@ -280,7 +289,7 @@ namespace SpreadCube_WinForms
                 height += tbHeigth;
             }
 
-            //Draw the cell contents:
+            //Note: Draw the cell contents:
             height = tbHeigth;
             for (int row = 0; row < visCells.GetLength(1); row++)
             {
