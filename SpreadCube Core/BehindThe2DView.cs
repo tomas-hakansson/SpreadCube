@@ -2,42 +2,98 @@
 
 public class BehindThe2DView
 {
+    /* external api:
+     *  data:
+     *      the dimensions and their indices (categories and their members).
+     *      the cursor position, the current coordinate.
+     *      what about ranges for when you select several cells?
+     *
+     *  operations:
+     *      a way of accessing the value of specific coordinates.
+     */
+
     public Category[] HorizontalCategories { get; private set; }
     public Category[] VerticalCategories { get; private set; }
     public Category[] HiddenCategories { get; private set; }
-    public Cell[,] VisibleCells { get; private set; }
+    public CellValue[,] VisibleCells { get; private set; }
 
-    List<Cell> _allCells { get; set; }
+    public List<string> HCats { get; private set; }
+    public List<string> VCats { get; private set; }
+    public List<string> HiddenCats { get; private set; }
+    public Dictionary<string, List<string>> CategoryToIndices { get; private set; }
+    public HashSet<(string category, string index)> Cursor { get; private set; }
+    public HashSet<CellValue> CellValues { get; private set; }
+    public Dictionary<CellValue, HashSet<(string category, string index)>> CellValueToCoordinates { get; private set; }
+    public Dictionary<HashSet<(string category, string index)>, CellValue> CoordinatesToCellValue { get; private set; }
+    List<CellValue> _allCells { get; set; }
 
     public BehindThe2DView()
     {
-        string[] monthsIndices = A("Jan", "Feb", "Mar", "Apr", "May", "Jun");
-        var colCount = monthsIndices.Length;
-        Category months = new("Months");
-        string[] yearsIndices = A("2019", "2020", "2021", "2022", "2023");
-        var rowCount = yearsIndices.Length;
-        Category years = new("Years");
-        var content = 0;
-        VisibleCells = new Cell[colCount, rowCount];
-        _allCells = new List<Cell>();
-        for (int row = 0; row < rowCount; row++)
-        {
-            for (int col = 0; col < colCount; col++)
-            {
-                //set cell value:
-                var cell = new Cell();
-                cell.SetTextContent(content.ToString());
-                VisibleCells[col, row] = cell;
-                _allCells.Add(cell);
-                content++;
+        /* Changes to data structure:
+         *  When thinking about possible optimisations I realised that it would be rather silly to create
+         *  and store a Cell for each coordinate even when it holds no value and that made me realize
+         *  that I don't think 'VisibleCells' is needed at all. All I need are the categories with the
+         *  knowledge of which are horizontal, vertical as well as hidden. The Cells can be stored in
+         *  a HashSet. Assuming it works, this completely obviates the whole 'multidimensional array
+         *  issue'.
+         */
 
-                //set months value:
-                months.AddIndex(monthsIndices[col], cell);
-                years.AddIndex(yearsIndices[row], cell);
-            }
-        }
-        HorizontalCategories = new Category[] { months };
-        VerticalCategories = new Category[] { years };
+        var yearsIndices = A("2019");
+        var yearsCount = yearsIndices.Length;
+        Category yearsCat = new("Years");
+
+        var monthsIndices = A("Jan", "Feb", "Mar", "Apr", "May", "Jun");
+        var monthsCount = monthsIndices.Length;
+        Category monthsCat = new("Months");
+
+        var daysIndices = A("Mon", "tue");
+        var daysCount = daysIndices.Length;
+        Category daysCat = new("Days");
+
+        var staffIndices = A("Bob", "Matilda");//ToDo:                                                        
+        var staffCount = staffIndices.Length;
+        Category staffCat = new("Staff");
+
+        var salesIndices = A("42", "69", "1138");
+        var salesCount = salesIndices.Length;
+        Category salesCat = new("Sales");
+
+        HCats = new() { "Years", "Months", "Days" };
+        VCats = new() { "Staff", "Sales" };
+        HiddenCats = new();
+
+        CategoryToIndices = new()
+        {
+            { "Years", yearsIndices.ToList() },
+            { "Months", monthsIndices.ToList() },
+            { "Days", daysIndices.ToList() },
+            { "Staff", staffIndices.ToList() },
+            { "Sales", salesIndices.ToList() },
+        };
+
+        Cursor = new() { ("Months", "Jan"), ("Years", "2019"), ("Staff", "Bob") };
+
+        //var content = 0;
+        VisibleCells = new CellValue[monthsCount, yearsCount];
+        //_allCells = new List<CellValue>();
+        //for (int row = 0; row < yearsCount; row++)
+        //{
+        //    for (int col = 0; col < monthsCount; col++)
+        //    {
+        //        //set cell value:
+        //        //var cell = new CellValue();
+        //        //cell.SetTextContent(content.ToString());
+        //        VisibleCells[col, row] = cell;
+        //        //_allCells.Add(cell);
+        //        //content++;
+
+        //        //set months value:
+        //        monthsCat.AddIndex(monthsIndices[col], cell);
+        //        yearsCat.AddIndex(yearsIndices[row], cell);
+        //    }
+        //}
+        HorizontalCategories = new Category[] { monthsCat };
+        VerticalCategories = new Category[] { yearsCat };
         HiddenCategories = Array.Empty<Category>();
     }
 
@@ -46,12 +102,19 @@ public class BehindThe2DView
     public void SetCellContent(string textContent, List<(string category, string index)> coordinates) =>
         GetCell(coordinates).TextContent = textContent;
 
-    public Cell GetCell(List<(string category, string index)> coordinates)
+    public CellValue GetCell2(HashSet<(string category, string index)> coordinates)
+    {
+        if (CoordinatesToCellValue.ContainsKey(coordinates))
+            return CoordinatesToCellValue[coordinates];
+        else
+            throw new ArgumentException($"In method: {nameof(GetCell2)} - Invalid coordinates");
+    }
+    public CellValue GetCell(List<(string category, string index)> coordinates)
     {
         //Note: The categories are the dimensions. This method must be provided with coordinates in *all* dimensions
         //  to ensure that they point to a single cell.
         if (coordinates.Count != HorizontalCategories.Length + VerticalCategories.Length + HiddenCategories.Length)
-            throw new ArgumentException($"In method: {nameof(SetCellContent)} - Invalid coordinate.");
+            throw new ArgumentException($"In method: {nameof(SetCellContent)} - Invalid coordinates.");
 
         //Note: Each category (dimension) index is associated with a sequence of cells via their ids.
         //  Here we try to find a specific cell by finding the intersection of all category indices.
@@ -70,6 +133,9 @@ public class BehindThe2DView
 
         //Note: Once we have the cell id we can use it to find its corresponding cell and then update its value.
         var cellId = cellIdIntersection.First();
+        var temp = CellValues.FirstOrDefault(c => c.Equals(cellId));//ToDo:                                                   
+        //Cells.TryGetValue
+
         var cellMatch = _allCells.Where(c => c.Id == cellId);
         if (cellMatch.Count() != 1)
             throw new Exception($"In method: {nameof(SetCellContent)} - Invalid cell state.");

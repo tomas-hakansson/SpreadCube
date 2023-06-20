@@ -11,7 +11,7 @@ public class Category
         IndexToCells = new Dictionary<string, List<Guid>>();
     }
 
-    public void AddIndex(string index, Cell cell)
+    public void AddIndex(string index, CellValue cell)
     {
         if (IndexToCells.ContainsKey(index))
             IndexToCells[index].Add(cell.Id);

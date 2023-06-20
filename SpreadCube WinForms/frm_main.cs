@@ -95,10 +95,10 @@ namespace SpreadCube_WinForms
 
             // our code behind:
             _core = new();
-            Category[] hc = _core.HorizontalCategories;
-            Category[] vc = _core.VerticalCategories;
-            Category[] hic = _core.HiddenCategories;
-            Cell[,] cs = _core.VisibleCells;
+            //Category[] hc = _core.HorizontalCategories;
+            //Category[] vc = _core.VerticalCategories;
+            //Category[] hic = _core.HiddenCategories;
+            //CellValue[,] cs = _core.VisibleCells;
 
             //  cells:
 
@@ -205,22 +205,22 @@ namespace SpreadCube_WinForms
                 pg.DrawString(previousText, Font, brush, previousTextBoxLocation);
 
                 //Note: Update the cell value of the previous location:
-                coordinates = PointToCoordinates(previousTextBoxLocation);
-                _core.SetCellContent(previousText, coordinates);
+                //coordinates = PointToCoordinates(previousTextBoxLocation);
+                //_core.SetCellContent(previousText, coordinates);
 
                 previousText = string.Empty;
             }
 
             //Note: Use the current text location to set the Text of the text box location:
-            coordinates = PointToCoordinates(_tb_activeCell.Location);
-            var cell = _core.GetCell(coordinates);
+            //coordinates = PointToCoordinates(_tb_activeCell.Location);
+            //var cell = _core.GetCell(coordinates);
             _tb_activeCell.Clear();
-            _tb_activeCell.Text = cell.TextContent;
+            //_tb_activeCell.Text = cell.TextContent;
         }
 
         List<(string category, string index)> PointToCoordinates(Point point)
         {//Ponder: use set (HashSet) instead of sequences.
-            //ToDo: Need to store the cat:index order directly and NOT rely on dictionary preserving it.
+            //ToDo: Need to store the category:index order directly and NOT rely on dictionary preserving it.
             var hIndex = (point.X - point.X % _tb_activeCell.Width) / _tb_activeCell.Width;
             var hCatIndex = _core.HorizontalCategories.First().IndexToCells.Keys.ToArray()[hIndex - 1];
             var vIndex = (point.Y - point.Y % _tb_activeCell.Height) / _tb_activeCell.Height;
@@ -239,70 +239,151 @@ namespace SpreadCube_WinForms
             //Note: IMPORTANT ASSUMPTION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             //  We are assuming here that the horizontal and vertical has only *one* category each. This WILL break later.
 
-            var hcat = _core.HorizontalCategories;
-            var hIndices = hcat[0].IndexToCells.Keys;
-            var vcat = _core.VerticalCategories;
-            var vIndices = vcat[0].IndexToCells.Keys;
-            var visCells = _core.VisibleCells;
+            //var hcat = _core.HCats;
+            //var hIndices = _core.CategoryToIndices[hcat[1]];
+            //var vcat = _core.VCats;
+            //var vIndices = _core.CategoryToIndices[vcat[0]];
+            //var visCells = _core.VisibleCells;
 
-            var tbWidth = _tb_activeCell.Width;
-            var tbHeigth = _tb_activeCell.Height;
+            //var tbWidth = _tb_activeCell.Width;
+            //var tbHeigth = _tb_activeCell.Height;
 
-            //Note: Draw the vertical category lines:
-            //Note: Draw the horizontal category lines:
+            var horizontalCategories = _core.HCats;
+            var verticalCategories = _core.VCats;
+            var textBoxWidth = _tb_activeCell.Width;
+            var textBoxHeight = _tb_activeCell.Height;
 
-            //Note: Draw the vertical categories:
-            var height = tbHeigth;
-            foreach (var index in vIndices)
-            {
-                Brush brush = new SolidBrush(Color.Black);
-                g.DrawString(index, Font, brush, new Point(0, height));
-                height += tbHeigth;
-            }
+            var startingX = verticalCategories.Count * textBoxWidth;
+            var startingY = horizontalCategories.Count * textBoxHeight;
+
+            //Note: Draw the upper left corner:
+            //Note: Horizontal line:
+            g.DrawLine(penBlack, new Point(0, 0), new Point(startingX, 0));
+            //Note: Vertical line:
+            g.DrawLine(penBlack, new Point(0, 0), new Point(0, startingY));
 
             //Note: Draw the horizontal categories:
-            var width = tbWidth;
-            foreach (var index in hIndices)
-            {
-                Brush brush = new SolidBrush(Color.Black);
-                g.DrawString(index, Font, brush, new Point(width, 0));
-                width += tbWidth;
-            }
+            var varyingX = 0;
+            var horizontalCellCount = horizontalCategories
+                .Select(hc => _core.CategoryToIndices[hc].Count)
+                .Aggregate((x, y) => x * y);
+            var finalX = startingX + (horizontalCellCount * textBoxWidth);
 
-            //Note: Draw the vertical cell lines:
-            var evenHeight = (vIndices.Count + 1) * tbHeigth;
-            var verticalCount = hIndices.Count + 1;
-            width = tbWidth;
-            for (int i = 0; i < verticalCount; i++)
-            {
-                g.DrawLine(penBlack, new Point(width, tbHeigth), new Point(width, evenHeight));
-                width += tbWidth;
-            }
+            var varyingY = 0;
+            var verticalCellCount = verticalCategories
+                .Select(hc => _core.CategoryToIndices[hc].Count)
+                .Aggregate((x, y) => x * y);
+            var finalY = startingY + (verticalCellCount * textBoxHeight);
 
-            //Note: Draw the horizontal cell lines:
-            var evenWidth = (hIndices.Count + 1) * tbWidth;
-            var horizontalCount = vIndices.Count + 1;
-            height = tbHeigth;
-            for (int i = 0; i < horizontalCount; i++)
+            var horizontalCategoryCount = horizontalCategories.Count;
+            for (int i = 0; i < horizontalCategoryCount; i++)
             {
-                g.DrawLine(penBlack, new Point(tbWidth, height), new Point(evenWidth, height));
-                height += tbHeigth;
-            }
+                //Note: Draw the horizontal cell lines:
+                g.DrawLine(penBlack, new Point(startingX, varyingY), new Point(finalX, varyingY));
 
-            //Note: Draw the cell contents:
-            height = tbHeigth;
-            for (int row = 0; row < visCells.GetLength(1); row++)
-            {
-                width = tbWidth;
-                for (int col = 0; col < visCells.GetLength(0); col++)
+                //Note: Draw the vertical cell lines:
+                var currentHorizontalCellCount = horizontalCategories.Take(i + 1)
+                    .Select(hc => _core.CategoryToIndices[hc].Count)
+                    .Aggregate((x, y) => x * y);
+                var verticalCount = currentHorizontalCellCount + 2;
+                varyingX = 0;
+                for (int j = 0; j < verticalCount; j++)
                 {
-                    Brush brush = new SolidBrush(Color.Black);
-                    var cellContent = visCells[col, row].TextContent;
-                    g.DrawString(cellContent, Font, brush, new Point(width, height));
-                    width += tbWidth;
+                    g.DrawLine(penBlack, new Point(varyingX, varyingY), new Point(varyingX, finalY));
+
+                    if (j == 0)
+                        varyingX += verticalCategories.Count * textBoxWidth;
+                    else
+                    {
+                        var remainingCategories = horizontalCategories.Skip(i + 1);
+                        if (remainingCategories.Any())
+                        {
+                            var remainingHorizontalCellCount = remainingCategories
+                                .Select(hc => _core.CategoryToIndices[hc].Count)
+                                .Aggregate((x, y) => x * y);
+                            varyingX += remainingHorizontalCellCount * textBoxWidth;
+                        }
+                        else
+                            varyingX += textBoxWidth;
+                    }
                 }
-                height += tbHeigth;
+
+                varyingY += textBoxHeight;
             }
+
+            //Note: Draw the vertical categories:
+            finalY = startingY + (verticalCellCount * textBoxHeight);
+            var verticalCategoryCount = verticalCategories.Count;
+            varyingX = 0;
+            for (int i = 0; i < verticalCategoryCount; i++)
+            {
+                //Note: Draw the horizontal cell lines:
+                var currentVerticalCellCount = verticalCategories.Take(i + 1)
+                    .Select(hc => _core.CategoryToIndices[hc].Count)
+                    .Aggregate((x, y) => x * y);
+                var horizontalCount = currentVerticalCellCount + 2;
+                varyingY = 0;
+                for (int j = 0; j < horizontalCount; j++)
+                {
+                    g.DrawLine(penBlack, new Point(varyingX, varyingY), new Point(finalX, varyingY));
+
+                    if (j == 0)
+                        varyingY += horizontalCategories.Count * textBoxHeight;
+                    else
+                    {
+                        var remainingCategories = verticalCategories.Skip(i + 1);
+                        if (remainingCategories.Any())
+                        {
+                            var remainingVerticalCellCount = remainingCategories
+                                .Select(hc => _core.CategoryToIndices[hc].Count)
+                                .Aggregate((x, y) => x * y);
+                            varyingY += remainingVerticalCellCount * textBoxHeight;
+                        }
+                        else
+                            varyingY += textBoxHeight;
+                    }
+                }
+
+                //Note: Draw the vertical cell lines:
+                g.DrawLine(penBlack, new Point(varyingX, startingY), new Point(varyingX, finalY));
+
+                varyingX += textBoxWidth;
+            }
+
+
+
+            //Note: Write the vertical categories:
+            //var height = tbHeigth;
+            //foreach (var index in vIndices)
+            //{
+            //    Brush brush = new SolidBrush(Color.Black);
+            //    g.DrawString(index, Font, brush, new Point(0, height));
+            //    height += tbHeigth;
+            //}
+
+            ////Note: Write the horizontal categories:
+            //var width = tbWidth;
+            //foreach (var index in hIndices)
+            //{
+            //    Brush brush = new SolidBrush(Color.Black);
+            //    g.DrawString(index, Font, brush, new Point(width, 0));
+            //    width += tbWidth;
+            //}
+
+            ////Note: Write the cell contents:
+            //height = tbHeigth;
+            //for (int row = 0; row < visCells.GetLength(1); row++)
+            //{
+            //    width = tbWidth;
+            //    for (int col = 0; col < visCells.GetLength(0); col++)
+            //    {
+            //        Brush brush = new SolidBrush(Color.Black);
+            //        var cellContent = visCells[col, row].TextContent;
+            //        g.DrawString(cellContent, Font, brush, new Point(width, height));
+            //        width += tbWidth;
+            //    }
+            //    height += tbHeigth;
+            //}
         }
 
         Point Add(Point a, Point b) =>
