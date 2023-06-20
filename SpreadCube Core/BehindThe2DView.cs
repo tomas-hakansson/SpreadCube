@@ -50,7 +50,7 @@ public class BehindThe2DView
         var daysCount = daysIndices.Length;
         Category daysCat = new("Days");
 
-        var staffIndices = A("Bob", "Matilda");//ToDo:                                                        
+        var staffIndices = A("Bob", "Matilda");
         var staffCount = staffIndices.Length;
         Category staffCat = new("Staff");
 

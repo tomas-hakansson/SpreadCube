@@ -234,123 +234,18 @@ namespace SpreadCube_WinForms
             var p = _pnl_Spreadsheet;
             var g = p.CreateGraphics();
             g.Clear(BackColor);
-            Pen penBlack = new(Color.Black);
-
-            //Note: IMPORTANT ASSUMPTION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            //  We are assuming here that the horizontal and vertical has only *one* category each. This WILL break later.
-
-            //var hcat = _core.HCats;
-            //var hIndices = _core.CategoryToIndices[hcat[1]];
-            //var vcat = _core.VCats;
-            //var vIndices = _core.CategoryToIndices[vcat[0]];
-            //var visCells = _core.VisibleCells;
-
-            //var tbWidth = _tb_activeCell.Width;
-            //var tbHeigth = _tb_activeCell.Height;
+            Pen pen = new(Color.Black);
+            Brush brush = new SolidBrush(Color.Black);
 
             var horizontalCategories = _core.HCats;
             var verticalCategories = _core.VCats;
-            var textBoxWidth = _tb_activeCell.Width;
-            var textBoxHeight = _tb_activeCell.Height;
 
-            var startingX = verticalCategories.Count * textBoxWidth;
-            var startingY = horizontalCategories.Count * textBoxHeight;
+            var startingX = verticalCategories.Count * _tb_activeCell.Width;
+            var startingY = horizontalCategories.Count * _tb_activeCell.Height;
 
-            //Note: Draw the upper left corner:
-            //Note: Horizontal line:
-            g.DrawLine(penBlack, new Point(0, 0), new Point(startingX, 0));
-            //Note: Vertical line:
-            g.DrawLine(penBlack, new Point(0, 0), new Point(0, startingY));
-
-            //Note: Draw the horizontal categories:
-            var varyingX = 0;
-            var horizontalCellCount = horizontalCategories
-                .Select(hc => _core.CategoryToIndices[hc].Count)
-                .Aggregate((x, y) => x * y);
-            var finalX = startingX + (horizontalCellCount * textBoxWidth);
-
-            var varyingY = 0;
-            var verticalCellCount = verticalCategories
-                .Select(hc => _core.CategoryToIndices[hc].Count)
-                .Aggregate((x, y) => x * y);
-            var finalY = startingY + (verticalCellCount * textBoxHeight);
-
-            var horizontalCategoryCount = horizontalCategories.Count;
-            for (int i = 0; i < horizontalCategoryCount; i++)
-            {
-                //Note: Draw the horizontal cell lines:
-                g.DrawLine(penBlack, new Point(startingX, varyingY), new Point(finalX, varyingY));
-
-                //Note: Draw the vertical cell lines:
-                var currentHorizontalCellCount = horizontalCategories.Take(i + 1)
-                    .Select(hc => _core.CategoryToIndices[hc].Count)
-                    .Aggregate((x, y) => x * y);
-                var verticalCount = currentHorizontalCellCount + 2;
-                varyingX = 0;
-                for (int j = 0; j < verticalCount; j++)
-                {
-                    g.DrawLine(penBlack, new Point(varyingX, varyingY), new Point(varyingX, finalY));
-
-                    if (j == 0)
-                        varyingX += verticalCategories.Count * textBoxWidth;
-                    else
-                    {
-                        var remainingCategories = horizontalCategories.Skip(i + 1);
-                        if (remainingCategories.Any())
-                        {
-                            var remainingHorizontalCellCount = remainingCategories
-                                .Select(hc => _core.CategoryToIndices[hc].Count)
-                                .Aggregate((x, y) => x * y);
-                            varyingX += remainingHorizontalCellCount * textBoxWidth;
-                        }
-                        else
-                            varyingX += textBoxWidth;
-                    }
-                }
-
-                varyingY += textBoxHeight;
-            }
-
-            //Note: Draw the vertical categories:
-            finalY = startingY + (verticalCellCount * textBoxHeight);
-            var verticalCategoryCount = verticalCategories.Count;
-            varyingX = 0;
-            for (int i = 0; i < verticalCategoryCount; i++)
-            {
-                //Note: Draw the horizontal cell lines:
-                var currentVerticalCellCount = verticalCategories.Take(i + 1)
-                    .Select(hc => _core.CategoryToIndices[hc].Count)
-                    .Aggregate((x, y) => x * y);
-                var horizontalCount = currentVerticalCellCount + 2;
-                varyingY = 0;
-                for (int j = 0; j < horizontalCount; j++)
-                {
-                    g.DrawLine(penBlack, new Point(varyingX, varyingY), new Point(finalX, varyingY));
-
-                    if (j == 0)
-                        varyingY += horizontalCategories.Count * textBoxHeight;
-                    else
-                    {
-                        var remainingCategories = verticalCategories.Skip(i + 1);
-                        if (remainingCategories.Any())
-                        {
-                            var remainingVerticalCellCount = remainingCategories
-                                .Select(hc => _core.CategoryToIndices[hc].Count)
-                                .Aggregate((x, y) => x * y);
-                            varyingY += remainingVerticalCellCount * textBoxHeight;
-                        }
-                        else
-                            varyingY += textBoxHeight;
-                    }
-                }
-
-                //Note: Draw the vertical cell lines:
-                g.DrawLine(penBlack, new Point(varyingX, startingY), new Point(varyingX, finalY));
-
-                varyingX += textBoxWidth;
-            }
-
-
+            DrawHorizontalCategories(g, pen, brush, startingX, 0, horizontalCategories);
+            DrawVerticalCategories(g, pen, brush, 0, startingY, verticalCategories);
+            DrawCellLines(g, pen, brush, startingX, startingY);
 
             //Note: Write the vertical categories:
             //var height = tbHeigth;
@@ -386,7 +281,117 @@ namespace SpreadCube_WinForms
             //}
         }
 
-        Point Add(Point a, Point b) =>
-            new Point(a.X + b.X, a.Y + b.Y);
+        void DrawHorizontalCategories(Graphics g, Pen pen, Brush brush, int startingX, int startingY, List<string> categories)
+        {
+            /* for current category.
+             *  use remaining categories to figure out width
+             *  draw per each index of current category and for each call self recursively
+             */
+
+            var textBoxWidth = _tb_activeCell.Width;
+            var textBoxHeight = _tb_activeCell.Height;
+
+            var currentIndices = _core.CategoryToIndices[categories.First()];
+            var remainingCategories = categories.Skip(1).ToList();
+            int cellWidth;
+            if (remainingCategories.Any())
+            {
+                var remainingCellCount = remainingCategories
+                    .Select(c => _core.CategoryToIndices[c].Count)
+                    .Aggregate((x, y) => x * y);
+                cellWidth = remainingCellCount * textBoxWidth;
+            }
+            else
+                cellWidth = textBoxWidth;
+
+            //Note: Draw horizontal line:
+            var horizontalLineLength = startingX + (cellWidth * currentIndices.Count);
+            g.DrawLine(pen, new Point(startingX, startingY), new Point(horizontalLineLength, startingY));
+
+            //Note: Draw vertical lines and write indices:
+            var varyingX = startingX;
+            var nextY = startingY + textBoxHeight;
+            foreach (var index in currentIndices)
+            {
+                g.DrawLine(pen, new Point(varyingX, startingY), new Point(varyingX, startingY + textBoxHeight));
+                if (remainingCategories.Any())
+                    DrawHorizontalCategories(g, pen, brush, varyingX, nextY, remainingCategories);
+                varyingX += cellWidth;
+            }
+            g.DrawLine(pen, new Point(horizontalLineLength, startingY), new Point(horizontalLineLength, startingY + textBoxHeight));
+        }
+
+        void DrawVerticalCategories(Graphics g, Pen pen, Brush brush, int startingX, int startingY, List<string> categories)
+        {
+            /* for current category.
+             *  use remaining categories to figure out width
+             *  draw per each index of current category and for each call self recursively
+             */
+
+            var textBoxWidth = _tb_activeCell.Width;
+            var textBoxHeight = _tb_activeCell.Height;
+
+            var currentIndices = _core.CategoryToIndices[categories.First()];
+            var remainingCategories = categories.Skip(1).ToList();
+            int cellHeight;
+            if (remainingCategories.Any())
+            {
+                var remainingCellCount = remainingCategories
+                    .Select(c => _core.CategoryToIndices[c].Count)
+                    .Aggregate((x, y) => x * y);
+                cellHeight = remainingCellCount * textBoxHeight;
+            }
+            else
+                cellHeight = textBoxHeight;
+
+            //Note: Draw vertical line:
+            var verticalLineLength = startingY + (cellHeight * currentIndices.Count);
+            g.DrawLine(pen, new Point(startingX, startingY), new Point(startingX, verticalLineLength));
+
+            //Note: Draw horizontal lines and write indices:
+            var varyingY = startingY;
+            var nextX = startingX + textBoxWidth;
+            foreach (var index in currentIndices)
+            {
+                g.DrawLine(pen, new Point(startingX, varyingY), new Point(startingX + textBoxWidth, varyingY));
+                if (remainingCategories.Any())
+                    DrawVerticalCategories(g, pen, brush, nextX, varyingY, remainingCategories);
+                varyingY += cellHeight;
+            }
+            g.DrawLine(pen, new Point(startingX, verticalLineLength), new Point(startingX + textBoxWidth, verticalLineLength));
+        }
+
+        void DrawCellLines(Graphics g, Pen pen, Brush brush, int startingX, int startingY)
+        {
+            var textBoxWidth = _tb_activeCell.Width;
+            var totalHorizontalCellCount = _core.HCats
+                .Select(c => _core.CategoryToIndices[c].Count)
+                .Aggregate((x, y) => x * y);
+            var endingX = startingX + totalHorizontalCellCount * textBoxWidth;
+
+            var textBoxHeight = _tb_activeCell.Height;
+            var totalVerticalCellCount = _core.VCats
+                .Select(c => _core.CategoryToIndices[c].Count)
+                .Aggregate((x, y) => x * y);
+            var endingY = startingY + totalVerticalCellCount * textBoxHeight;
+
+            //Note: Draw horizontal line:
+            var varyingY = startingY;
+            for (int i = 0; i < totalVerticalCellCount; i++)
+            {
+                g.DrawLine(pen, new Point(startingX, varyingY), new Point(endingX, varyingY));
+                varyingY += textBoxHeight;
+            }
+            g.DrawLine(pen, new Point(startingX, endingY), new Point(endingX, endingY));
+
+            //Note: Draw vertical line:
+            var varyingX = startingX;
+            for (int i = 0; i < totalHorizontalCellCount; i++)
+            {
+                g.DrawLine(pen, new Point(varyingX, startingY), new Point(varyingX, endingY));
+                varyingX += textBoxWidth;
+            }
+            g.DrawLine(pen, new Point(endingX, startingY), new Point(endingX, endingY));
+        }
     }
 }
