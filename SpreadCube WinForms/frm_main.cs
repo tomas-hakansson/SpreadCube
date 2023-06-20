@@ -314,6 +314,8 @@ namespace SpreadCube_WinForms
             foreach (var index in currentIndices)
             {
                 g.DrawLine(pen, new Point(varyingX, startingY), new Point(varyingX, startingY + textBoxHeight));
+                g.DrawString(index, Font, brush, new Point(varyingX, startingY));
+
                 if (remainingCategories.Any())
                     DrawHorizontalCategories(g, pen, brush, varyingX, nextY, remainingCategories);
                 varyingX += cellWidth;
@@ -354,6 +356,8 @@ namespace SpreadCube_WinForms
             foreach (var index in currentIndices)
             {
                 g.DrawLine(pen, new Point(startingX, varyingY), new Point(startingX + textBoxWidth, varyingY));
+                g.DrawString(index, Font, brush, new Point(startingX, varyingY));
+
                 if (remainingCategories.Any())
                     DrawVerticalCategories(g, pen, brush, nextX, varyingY, remainingCategories);
                 varyingY += cellHeight;
