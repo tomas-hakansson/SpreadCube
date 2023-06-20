@@ -39,27 +39,13 @@ public class BehindThe2DView
          */
 
         var yearsIndices = A("2019");
-        var yearsCount = yearsIndices.Length;
-        Category yearsCat = new("Years");
-
         var monthsIndices = A("Jan", "Feb", "Mar", "Apr", "May", "Jun");
-        var monthsCount = monthsIndices.Length;
-        Category monthsCat = new("Months");
-
         var daysIndices = A("Mon", "tue");
-        var daysCount = daysIndices.Length;
-        Category daysCat = new("Days");
-
         var staffIndices = A("Bob", "Matilda");
-        var staffCount = staffIndices.Length;
-        Category staffCat = new("Staff");
-
-        var salesIndices = A("42", "69", "1138");
-        var salesCount = salesIndices.Length;
-        Category salesCat = new("Sales");
+        var productsIndices = A("LPs", "Letters", "Salves");
 
         HCats = new() { "Years", "Months", "Days" };
-        VCats = new() { "Staff", "Sales" };
+        VCats = new() { "Staff", "Producs" };
         HiddenCats = new();
 
         CategoryToIndices = new()
@@ -68,13 +54,13 @@ public class BehindThe2DView
             { "Months", monthsIndices.ToList() },
             { "Days", daysIndices.ToList() },
             { "Staff", staffIndices.ToList() },
-            { "Sales", salesIndices.ToList() },
+            { "Producs", productsIndices.ToList() },
         };
 
         Cursor = new() { ("Months", "Jan"), ("Years", "2019"), ("Staff", "Bob") };
 
         //var content = 0;
-        VisibleCells = new CellValue[monthsCount, yearsCount];
+        //VisibleCells = new CellValue[monthsCount, yearsCount];
         //_allCells = new List<CellValue>();
         //for (int row = 0; row < yearsCount; row++)
         //{
@@ -92,8 +78,8 @@ public class BehindThe2DView
         //        yearsCat.AddIndex(yearsIndices[row], cell);
         //    }
         //}
-        HorizontalCategories = new Category[] { monthsCat };
-        VerticalCategories = new Category[] { yearsCat };
+        //HorizontalCategories = new Category[] { monthsCat };
+        //VerticalCategories = new Category[] { yearsCat };
         HiddenCategories = Array.Empty<Category>();
     }
 

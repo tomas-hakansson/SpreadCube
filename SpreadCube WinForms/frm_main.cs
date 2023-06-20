@@ -157,28 +157,38 @@ namespace SpreadCube_WinForms
 
         void Pnl_Spreadsheet__MouseDown(object? sender, MouseEventArgs e)
         {
-            //ToDo: make the failfast depend on _core data:
+            ////ToDo: make the failfast depend on _core data:
 
-            //evenHeight is the maximal height, that is evenly divisible by cell height, that can fit inside the panel.
-            int pHeight = _pnl_Spreadsheet.Height;
-            var evenHeight = pHeight - pHeight % _tb_activeCell.Height;
-            //if the mouse cursor is outside of the grid:
-            if (e.Y > evenHeight)
-                return;
-            // see evenHeight comment
-            int pWidth = _pnl_Spreadsheet.Width;
-            var evenWidth = pWidth - pWidth % _tb_activeCell.Width;
-            //if the mouse cursor is outside of the grid:
-            if (e.X > evenWidth)
-                return;
-            //Figure out the X and Y of the containing cell:
-            var xCoord = e.X - e.X % _tb_activeCell.Width;
-            var yCoord = e.Y - e.Y % _tb_activeCell.Height;
-            //Move the textbox there and turn it visible:
-            _tb_activeCell.Visible = false;
-            _tb_activeCell.Location = new Point(xCoord, yCoord);
-            _tb_activeCell.Visible = true;
-            _tb_activeCell.Focus();
+            ////evenHeight is the maximal height, that is evenly divisible by cell height, that can fit inside the panel.
+            //int pHeight = _pnl_Spreadsheet.Height;
+            //var evenHeight = pHeight - pHeight % _tb_activeCell.Height;
+            ////if the mouse cursor is outside of the grid:
+            //if (e.Y > evenHeight)
+            //    return;
+            //// see evenHeight comment
+            //int pWidth = _pnl_Spreadsheet.Width;
+            //var evenWidth = pWidth - pWidth % _tb_activeCell.Width;
+            ////if the mouse cursor is outside of the grid:
+            //if (e.X > evenWidth)
+            //    return;
+            ////Figure out the X and Y of the containing cell:
+            //var xCoord = e.X - e.X % _tb_activeCell.Width;
+            //var yCoord = e.Y - e.Y % _tb_activeCell.Height;
+            ////Move the textbox there and turn it visible:
+            //_tb_activeCell.Visible = false;
+            //_tb_activeCell.Location = new Point(xCoord, yCoord);
+            //_tb_activeCell.Visible = true;
+            //_tb_activeCell.Focus();
+
+            /* for drag and drop of categories:
+             *  identify what the cursor is on
+             *  if category
+             *      go into drag and drop mode
+             *  if dropped on non category area
+             *      return to original position
+             *  else
+             *      set to new position
+             */
         }
 
         string previousText = string.Empty;
@@ -240,30 +250,16 @@ namespace SpreadCube_WinForms
             var horizontalCategories = _core.HCats;
             var verticalCategories = _core.VCats;
 
+            var textBoxHeight = _tb_activeCell.Height;
+
             var startingX = verticalCategories.Count * _tb_activeCell.Width;
-            var startingY = horizontalCategories.Count * _tb_activeCell.Height;
+            var startingY = textBoxHeight + horizontalCategories.Count * textBoxHeight;
 
-            DrawHorizontalCategories(g, pen, brush, startingX, 0, horizontalCategories);
-            DrawVerticalCategories(g, pen, brush, 0, startingY, verticalCategories);
+            DrawHorizontalCategories(g, pen, brush, startingX);
+            DrawHorizontalIndices(g, pen, brush, startingX, textBoxHeight, horizontalCategories);
+            DrawVerticalIndices(g, pen, brush, 0, startingY, verticalCategories);
             DrawCellLines(g, pen, brush, startingX, startingY);
-
-            //Note: Write the vertical categories:
-            //var height = tbHeigth;
-            //foreach (var index in vIndices)
-            //{
-            //    Brush brush = new SolidBrush(Color.Black);
-            //    g.DrawString(index, Font, brush, new Point(0, height));
-            //    height += tbHeigth;
-            //}
-
-            ////Note: Write the horizontal categories:
-            //var width = tbWidth;
-            //foreach (var index in hIndices)
-            //{
-            //    Brush brush = new SolidBrush(Color.Black);
-            //    g.DrawString(index, Font, brush, new Point(width, 0));
-            //    width += tbWidth;
-            //}
+            DrawVerticalCategories(g, pen, brush, startingX, startingY);
 
             ////Note: Write the cell contents:
             //height = tbHeigth;
@@ -281,7 +277,38 @@ namespace SpreadCube_WinForms
             //}
         }
 
-        void DrawHorizontalCategories(Graphics g, Pen pen, Brush brush, int startingX, int startingY, List<string> categories)
+        private void DrawHorizontalCategories(Graphics g, Pen pen, Brush brush, int initialX)
+        {
+            var horizontalCategories = _core.HCats;
+
+            var textBoxHeight = _tb_activeCell.Height;
+            var textBoxWidth = _tb_activeCell.Width;
+
+            //calculate the ending x
+            var totalHorizontalCellCount = horizontalCategories
+                .Select(c => _core.CategoryToIndices[c].Count)
+                .Aggregate((x, y) => x * y);
+            var endingX = initialX + totalHorizontalCellCount * textBoxWidth;
+            //subtract the last from the first and we have the starting x
+            var startingX = endingX - CategoryListWidth(horizontalCategories);
+            //Note: Draw horizontal line:
+            g.DrawLine(pen, new Point(startingX, 0), new Point(endingX, 0));
+            //Note: Draw vertical lines:
+            var varyingX = startingX;
+            foreach (var category in horizontalCategories)
+            {
+                g.DrawLine(pen, new Point(varyingX, 0), new Point(varyingX, textBoxHeight));
+                varyingX += textBoxWidth / 4;
+                g.DrawLine(pen, new Point(varyingX, 0), new Point(varyingX, textBoxHeight));
+                g.DrawString(category, Font, brush, new Point(varyingX, 0));
+                varyingX += textBoxWidth;
+            }
+            g.DrawLine(pen, new Point(varyingX, 0), new Point(varyingX, textBoxHeight));
+            varyingX += textBoxWidth / 4;
+            g.DrawLine(pen, new Point(varyingX, 0), new Point(varyingX, textBoxHeight));
+        }
+
+        void DrawHorizontalIndices(Graphics g, Pen pen, Brush brush, int startingX, int startingY, List<string> categories)
         {
             /* for current category.
              *  use remaining categories to figure out width
@@ -317,13 +344,13 @@ namespace SpreadCube_WinForms
                 g.DrawString(index, Font, brush, new Point(varyingX, startingY));
 
                 if (remainingCategories.Any())
-                    DrawHorizontalCategories(g, pen, brush, varyingX, nextY, remainingCategories);
+                    DrawHorizontalIndices(g, pen, brush, varyingX, nextY, remainingCategories);
                 varyingX += cellWidth;
             }
             g.DrawLine(pen, new Point(horizontalLineLength, startingY), new Point(horizontalLineLength, startingY + textBoxHeight));
         }
 
-        void DrawVerticalCategories(Graphics g, Pen pen, Brush brush, int startingX, int startingY, List<string> categories)
+        void DrawVerticalIndices(Graphics g, Pen pen, Brush brush, int startingX, int startingY, List<string> categories)
         {
             /* for current category.
              *  use remaining categories to figure out width
@@ -359,7 +386,7 @@ namespace SpreadCube_WinForms
                 g.DrawString(index, Font, brush, new Point(startingX, varyingY));
 
                 if (remainingCategories.Any())
-                    DrawVerticalCategories(g, pen, brush, nextX, varyingY, remainingCategories);
+                    DrawVerticalIndices(g, pen, brush, nextX, varyingY, remainingCategories);
                 varyingY += cellHeight;
             }
             g.DrawLine(pen, new Point(startingX, verticalLineLength), new Point(startingX + textBoxWidth, verticalLineLength));
@@ -396,6 +423,47 @@ namespace SpreadCube_WinForms
                 varyingX += textBoxWidth;
             }
             g.DrawLine(pen, new Point(endingX, startingY), new Point(endingX, endingY));
+        }
+
+        void DrawVerticalCategories(Graphics g, Pen pen, Brush brush, int startingX, int initialY)
+        {
+            var verticalCategories = _core.VCats;
+
+            var textBoxHeight = _tb_activeCell.Height;
+            var textBoxWidth = _tb_activeCell.Width;
+
+            //calculate the ending x
+            var totalVerticalCellCount = verticalCategories
+                .Select(c => _core.CategoryToIndices[c].Count)
+                .Aggregate((x, y) => x * y);
+            var startingY = initialY + totalVerticalCellCount * textBoxHeight;
+            var endingY = startingY + textBoxHeight;
+            //calculate the width of the category list
+            int catListWidth = CategoryListWidth(verticalCategories);
+            //Note: Draw horizontal line:
+            g.DrawLine(pen, new Point(0, endingY), new Point(catListWidth, endingY));
+            //Note: Draw vertical lines:
+            var varyingX = 0;
+            foreach (var category in verticalCategories)
+            {
+                g.DrawLine(pen, new Point(varyingX, startingY), new Point(varyingX, endingY));
+                varyingX += textBoxWidth / 4;
+                g.DrawLine(pen, new Point(varyingX, startingY), new Point(varyingX, endingY));
+                g.DrawString(category, Font, brush, new Point(varyingX, startingY));
+                varyingX += textBoxWidth;
+            }
+            g.DrawLine(pen, new Point(varyingX, startingY), new Point(varyingX, endingY));
+            varyingX += textBoxWidth / 4;
+            g.DrawLine(pen, new Point(varyingX, startingY), new Point(varyingX, endingY));
+        }
+
+        int CategoryListWidth(List<string> categories)
+        {
+            var textBoxWidth = _tb_activeCell.Width;
+            var nrOfCats = categories.Count;
+            var catWidth = nrOfCats * textBoxWidth;
+            var joinWidth = (nrOfCats + 1) * (textBoxWidth / 4);
+            return catWidth + joinWidth;
         }
     }
 }
