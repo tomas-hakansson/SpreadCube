@@ -250,23 +250,46 @@ namespace SpreadCube_WinForms
                             if (clt == CategoryListType.DropCell)
                             {
                                 var (draggedAreaType, draggedCategory) = _categoryDragValue;
+                                List<string> to = new();
                                 if (areaType == AreaType.HorizontalCategories)
                                 {
-                                    _core.HCats.Insert(categoryIndex, draggedCategory);
+                                    if (areaType == draggedAreaType)
+                                    {
+                                        var oldIndex = _core.HCats.IndexOf(draggedCategory);
+                                        if (oldIndex != categoryIndex)
+                                        {
+                                            _core.HCats.RemoveAt(oldIndex);
+                                            if (oldIndex < categoryIndex)
+                                                categoryIndex--;
+                                            _core.HCats.Insert(categoryIndex, draggedCategory);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        _core.VCats.Remove(draggedCategory);
+                                        _core.HCats.Insert(categoryIndex, draggedCategory);
+                                    }
                                 }
                                 else if (areaType == AreaType.VerticalCategories)
                                 {
-                                    _core.VCats.Insert(categoryIndex, draggedCategory);
+                                    if (areaType == draggedAreaType)
+                                    {
+                                        var oldIndex = _core.VCats.IndexOf(draggedCategory);
+                                        if (oldIndex != categoryIndex)
+                                        {
+                                            _core.VCats.RemoveAt(oldIndex);
+                                            if (oldIndex < categoryIndex)
+                                                categoryIndex--;
+                                            _core.VCats.Insert(categoryIndex, draggedCategory);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        _core.HCats.Remove(draggedCategory);
+                                        _core.VCats.Insert(categoryIndex, draggedCategory);
+                                    }
                                 }
 
-                                if (draggedAreaType == AreaType.HorizontalCategories)
-                                {
-                                    _core.HCats.Remove(draggedCategory);
-                                }
-                                else if (draggedAreaType == AreaType.VerticalCategories)
-                                {
-                                    _core.VCats.Remove(draggedCategory);
-                                }
                                 Refresh();
                             }
                         }
