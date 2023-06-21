@@ -45,8 +45,13 @@ public class BehindThe2DView
         var productsIndices = A("LPs", "Letters", "Salves");
 
         HCats = new() { "Years", "Months", "Days" };
-        VCats = new() { "Staff", "Producs" };
+        VCats = new() { "Staff", "Products" };
         HiddenCats = new();
+
+        //Ponder: We can't handle situations where only one of vertical or horizontal has categories yet.
+        //  Not sure how to fix that. See 8:29 in https://www.youtube.com/watch?v=lTko_Pt2ZZg for example.
+        //HCats = new();
+        //VCats= new() { "Months", "Years" };
 
         CategoryToIndices = new()
         {
@@ -54,7 +59,7 @@ public class BehindThe2DView
             { "Months", monthsIndices.ToList() },
             { "Days", daysIndices.ToList() },
             { "Staff", staffIndices.ToList() },
-            { "Producs", productsIndices.ToList() },
+            { "Products", productsIndices.ToList() },
         };
 
         Cursor = new() { ("Months", "Jan"), ("Years", "2019"), ("Staff", "Bob") };

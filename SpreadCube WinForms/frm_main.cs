@@ -13,6 +13,16 @@ namespace SpreadCube_WinForms
 
         BehindThe2DView _core;
 
+        Dictionary<Rectangle, (AreaType areaType, object index)> _guiRectangleToBackendProperty;
+        enum AreaType
+        {
+            HorizontalCategories,
+            VerticalCategories,
+            HorizontalIndices,
+            VerticalIndices,
+            Cells,
+        }
+
         public Frm_main()
         {
             //Anders tips:
@@ -72,6 +82,7 @@ namespace SpreadCube_WinForms
             _pnl_Spreadsheet.Size = new Size(Width, Height);
             _pnl_Spreadsheet.Paint += new PaintEventHandler(Pnl_Spreadsheet__Paint);
             _pnl_Spreadsheet.MouseDown += new MouseEventHandler(Pnl_Spreadsheet__MouseDown);
+            _pnl_Spreadsheet.MouseUp += new MouseEventHandler(Pnl_Spreadsheet__MouseUp);
             _flp_MainGui.Controls.Add(_pnl_Spreadsheet);
 
             // a textbox on our painted panel:
@@ -99,6 +110,8 @@ namespace SpreadCube_WinForms
             //Category[] vc = _core.VerticalCategories;
             //Category[] hic = _core.HiddenCategories;
             //CellValue[,] cs = _core.VisibleCells;
+
+            _guiRectangleToBackendProperty = new();
 
             //  cells:
 
@@ -155,6 +168,8 @@ namespace SpreadCube_WinForms
             PaintSpreadsheet();
         }
 
+        (AreaType areaType, string category) _categoryDragValue;
+
         void Pnl_Spreadsheet__MouseDown(object? sender, MouseEventArgs e)
         {
             ////ToDo: make the failfast depend on _core data:
@@ -189,6 +204,78 @@ namespace SpreadCube_WinForms
              *  else
              *      set to new position
              */
+
+            var matches = _guiRectangleToBackendProperty.Where(pp => pp.Key.Contains(e.Location));
+            if (matches.Any())
+            {
+                if (matches.Count() != 1)
+                    throw new Exception("There can only be one!");
+                var (areaType, anObject) = matches.First().Value;
+                if (areaType == AreaType.HorizontalCategories || areaType == AreaType.VerticalCategories)
+                {
+                    var at = areaType;
+                    if (anObject is (CategoryListType, string))
+                    {
+                        var pair = anObject as (CategoryListType, string)?;
+                        if (pair != null)
+                        {
+                            var (clt, category) = pair.Value;
+                            if (clt == CategoryListType.Category)
+                                _categoryDragValue = (areaType, category);
+                        }
+                    }
+                }
+                else
+                    throw new NotImplementedException("I'll get to this. Don't rush me!");
+            }
+        }
+
+        void Pnl_Spreadsheet__MouseUp(object? sender, MouseEventArgs e)
+        {
+            var matches = _guiRectangleToBackendProperty.Where(pp => pp.Key.Contains(e.Location));
+            if (matches.Any())
+            {
+                if (matches.Count() != 1)
+                    throw new Exception("There can only be one!");
+                var (areaType, anObject) = matches.First().Value;
+                if (_categoryDragValue.category != null &&
+                    (areaType == AreaType.HorizontalCategories || areaType == AreaType.VerticalCategories))
+                {
+                    if (anObject is (CategoryListType, int))
+                    {
+                        var pair = anObject as (CategoryListType, int)?;
+                        if (pair != null)
+                        {
+                            var (clt, categoryIndex) = pair.Value;
+                            if (clt == CategoryListType.DropCell)
+                            {
+                                var (draggedAreaType, draggedCategory) = _categoryDragValue;
+                                if (areaType == AreaType.HorizontalCategories)
+                                {
+                                    _core.HCats.Insert(categoryIndex, draggedCategory);
+                                }
+                                else if (areaType == AreaType.VerticalCategories)
+                                {
+                                    _core.VCats.Insert(categoryIndex, draggedCategory);
+                                }
+
+                                if (draggedAreaType == AreaType.HorizontalCategories)
+                                {
+                                    _core.HCats.Remove(draggedCategory);
+                                }
+                                else if (draggedAreaType == AreaType.VerticalCategories)
+                                {
+                                    _core.VCats.Remove(draggedCategory);
+                                }
+                                Refresh();
+                            }
+                        }
+                    }
+                }
+                else
+                    throw new NotImplementedException("I'll get to this. Don't rush me!");
+            }
+            _categoryDragValue = new();
         }
 
         string previousText = string.Empty;
@@ -244,6 +331,7 @@ namespace SpreadCube_WinForms
             var p = _pnl_Spreadsheet;
             var g = p.CreateGraphics();
             g.Clear(BackColor);
+            _guiRectangleToBackendProperty.Clear();
             Pen pen = new(Color.Black);
             Brush brush = new SolidBrush(Color.Black);
 
@@ -277,10 +365,15 @@ namespace SpreadCube_WinForms
             //}
         }
 
+        enum CategoryListType
+        {
+            Category,
+            DropCell
+        }
+
         private void DrawHorizontalCategories(Graphics g, Pen pen, Brush brush, int initialX)
         {
             var horizontalCategories = _core.HCats;
-
             var textBoxHeight = _tb_activeCell.Height;
             var textBoxWidth = _tb_activeCell.Width;
 
@@ -295,17 +388,9 @@ namespace SpreadCube_WinForms
             g.DrawLine(pen, new Point(startingX, 0), new Point(endingX, 0));
             //Note: Draw vertical lines:
             var varyingX = startingX;
-            foreach (var category in horizontalCategories)
-            {
-                g.DrawLine(pen, new Point(varyingX, 0), new Point(varyingX, textBoxHeight));
-                varyingX += textBoxWidth / 4;
-                g.DrawLine(pen, new Point(varyingX, 0), new Point(varyingX, textBoxHeight));
-                g.DrawString(category, Font, brush, new Point(varyingX, 0));
-                varyingX += textBoxWidth;
-            }
-            g.DrawLine(pen, new Point(varyingX, 0), new Point(varyingX, textBoxHeight));
-            varyingX += textBoxWidth / 4;
-            g.DrawLine(pen, new Point(varyingX, 0), new Point(varyingX, textBoxHeight));
+            Point upperLeft = new(varyingX, 0);
+            Point lowerRight = new(varyingX, textBoxHeight);
+            DrawCategories(g, pen, brush, horizontalCategories, varyingX, upperLeft, lowerRight, AreaType.HorizontalCategories);
         }
 
         void DrawHorizontalIndices(Graphics g, Pen pen, Brush brush, int startingX, int startingY, List<string> categories)
@@ -428,9 +513,7 @@ namespace SpreadCube_WinForms
         void DrawVerticalCategories(Graphics g, Pen pen, Brush brush, int startingX, int initialY)
         {
             var verticalCategories = _core.VCats;
-
             var textBoxHeight = _tb_activeCell.Height;
-            var textBoxWidth = _tb_activeCell.Width;
 
             //calculate the ending x
             var totalVerticalCellCount = verticalCategories
@@ -443,18 +526,62 @@ namespace SpreadCube_WinForms
             //Note: Draw horizontal line:
             g.DrawLine(pen, new Point(0, endingY), new Point(catListWidth, endingY));
             //Note: Draw vertical lines:
-            var varyingX = 0;
-            foreach (var category in verticalCategories)
+            var inititialX = 0;
+            Point upperLeft = new(inititialX, startingY);
+            Point lowerRight = new(inititialX, endingY);
+            DrawCategories(g, pen, brush, verticalCategories, inititialX, upperLeft, lowerRight, AreaType.VerticalCategories);
+        }
+
+        private void DrawCategories(Graphics g,
+                                    Pen pen,
+                                    Brush brush,
+                                    List<string> categories,
+                                    int initialX,
+                                    Point upperLeft,
+                                    Point lowerRight,
+                                    AreaType areaType)
+        {
+            var textBoxWidth = _tb_activeCell.Width;
+            var categoryListIndex = 0;
+            var varyingX = initialX;
+            Rectangle listCell;
+            foreach (var category in categories)
             {
-                g.DrawLine(pen, new Point(varyingX, startingY), new Point(varyingX, endingY));
+                //Note: Draw first line:
+                g.DrawLine(pen, upperLeft, lowerRight);
                 varyingX += textBoxWidth / 4;
-                g.DrawLine(pen, new Point(varyingX, startingY), new Point(varyingX, endingY));
-                g.DrawString(category, Font, brush, new Point(varyingX, startingY));
+                lowerRight.X = varyingX;
+
+                //Note: Add point to drop cell:
+                listCell = new(upperLeft.X, upperLeft.Y, lowerRight.X - upperLeft.X, lowerRight.Y - upperLeft.Y);
+                _guiRectangleToBackendProperty.Add(listCell, (areaType, (CategoryListType.DropCell, categoryListIndex)));
+                categoryListIndex++;
+                upperLeft.X = varyingX;
+
+                //Note: Draw second line and category:
+                g.DrawLine(pen, upperLeft, lowerRight);
+                g.DrawString(category, Font, brush, upperLeft);
+
+                //Note: Add point to category:
                 varyingX += textBoxWidth;
+                lowerRight.X = varyingX;
+                listCell = new(upperLeft.X, upperLeft.Y, lowerRight.X - upperLeft.X, lowerRight.Y - upperLeft.Y);
+                _guiRectangleToBackendProperty.Add(listCell, (areaType, (CategoryListType.Category, category)));
+                upperLeft.X = varyingX;
             }
-            g.DrawLine(pen, new Point(varyingX, startingY), new Point(varyingX, endingY));
+
+            //Note: Draw penultimate line:
+            g.DrawLine(pen, upperLeft, lowerRight);
             varyingX += textBoxWidth / 4;
-            g.DrawLine(pen, new Point(varyingX, startingY), new Point(varyingX, endingY));
+
+            //Note: Add final point to drop cell:
+            lowerRight.X = varyingX;
+            listCell = new(upperLeft.X, upperLeft.Y, lowerRight.X - upperLeft.X, lowerRight.Y - upperLeft.Y);
+            _guiRectangleToBackendProperty.Add(listCell, (areaType, (CategoryListType.DropCell, categoryListIndex)));
+
+            //Note: Draw final line:
+            upperLeft.X = varyingX;
+            g.DrawLine(pen, upperLeft, lowerRight);
         }
 
         int CategoryListWidth(List<string> categories)
