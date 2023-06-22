@@ -168,7 +168,7 @@ namespace SpreadCube_WinForms
             PaintSpreadsheet();
         }
 
-        (AreaType areaType, string category) _categoryDragValue;
+        string _draggedCategory;
 
         void Pnl_Spreadsheet__MouseDown(object? sender, MouseEventArgs e)
         {
@@ -221,7 +221,7 @@ namespace SpreadCube_WinForms
                         {
                             var (clt, category) = pair.Value;
                             if (clt == CategoryListType.Category)
-                                _categoryDragValue = (areaType, category);
+                                _draggedCategory = category;
                         }
                     }
                 }
@@ -238,7 +238,7 @@ namespace SpreadCube_WinForms
                 if (matches.Count() != 1)
                     throw new Exception("There can only be one!");
                 var (areaType, anObject) = matches.First().Value;
-                if (_categoryDragValue.category != null &&
+                if (!string.IsNullOrWhiteSpace(_draggedCategory) &&
                     (areaType == AreaType.HorizontalCategories || areaType == AreaType.VerticalCategories))
                 {
                     if (anObject is (CategoryListType, int))
@@ -246,59 +246,58 @@ namespace SpreadCube_WinForms
                         var pair = anObject as (CategoryListType, int)?;
                         if (pair != null)
                         {
-                            var (clt, categoryIndex) = pair.Value;
-                            if (clt == CategoryListType.DropCell)
+                            var (categoryListType, categoryIndex) = pair.Value;
+                            if (categoryListType == CategoryListType.DropCell)
                             {
-                                var (draggedAreaType, draggedCategory) = _categoryDragValue;
-                                List<string> to = new();
                                 if (areaType == AreaType.HorizontalCategories)
-                                {
-                                    if (areaType == draggedAreaType)
-                                    {
-                                        var oldIndex = _core.HCats.IndexOf(draggedCategory);
-                                        if (oldIndex != categoryIndex)
-                                        {
-                                            _core.HCats.RemoveAt(oldIndex);
-                                            if (oldIndex < categoryIndex)
-                                                categoryIndex--;
-                                            _core.HCats.Insert(categoryIndex, draggedCategory);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        _core.VCats.Remove(draggedCategory);
-                                        _core.HCats.Insert(categoryIndex, draggedCategory);
-                                    }
-                                }
+                                    MoveCategory(categoryIndex, areaType);
                                 else if (areaType == AreaType.VerticalCategories)
-                                {
-                                    if (areaType == draggedAreaType)
-                                    {
-                                        var oldIndex = _core.VCats.IndexOf(draggedCategory);
-                                        if (oldIndex != categoryIndex)
-                                        {
-                                            _core.VCats.RemoveAt(oldIndex);
-                                            if (oldIndex < categoryIndex)
-                                                categoryIndex--;
-                                            _core.VCats.Insert(categoryIndex, draggedCategory);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        _core.HCats.Remove(draggedCategory);
-                                        _core.VCats.Insert(categoryIndex, draggedCategory);
-                                    }
-                                }
-
+                                    MoveCategory(categoryIndex, areaType);
                                 Refresh();
                             }
                         }
                     }
                 }
                 else
-                    throw new NotImplementedException("I'll get to this. Don't rush me!");
+                    throw new NotImplementedException("I'll get to this, don't rush me!");
             }
-            _categoryDragValue = new();
+            _draggedCategory = string.Empty;
+        }
+
+        void MoveCategory(int newIndex, AreaType receivingArea)
+        {
+            if (string.IsNullOrWhiteSpace(_draggedCategory))
+                return;
+
+            List<string> oldList;
+            List<string> newList;
+            if (receivingArea == AreaType.HorizontalCategories)
+            {
+                oldList = _core.VerticalCategories;
+                newList = _core.HorizontalCategories;
+            }
+            else
+            {
+                oldList = _core.HorizontalCategories;
+                newList = _core.VerticalCategories;
+            }
+
+            if (newList.Contains(_draggedCategory))
+            {
+                var oldIndex = newList.IndexOf(_draggedCategory);
+                if (oldIndex == newIndex)
+                    return;
+
+                newList.RemoveAt(oldIndex);
+                if (oldIndex < newIndex)
+                    newIndex--;
+                newList.Insert(newIndex, _draggedCategory);
+            }
+            else
+            {
+                oldList.Remove(_draggedCategory);
+                newList.Insert(newIndex, _draggedCategory);
+            }
         }
 
         string previousText = string.Empty;
@@ -338,17 +337,6 @@ namespace SpreadCube_WinForms
             //_tb_activeCell.Text = cell.TextContent;
         }
 
-        List<(string category, string index)> PointToCoordinates(Point point)
-        {//Ponder: use set (HashSet) instead of sequences.
-            //ToDo: Need to store the category:index order directly and NOT rely on dictionary preserving it.
-            var hIndex = (point.X - point.X % _tb_activeCell.Width) / _tb_activeCell.Width;
-            var hCatIndex = _core.HorizontalCategories.First().IndexToCells.Keys.ToArray()[hIndex - 1];
-            var vIndex = (point.Y - point.Y % _tb_activeCell.Height) / _tb_activeCell.Height;
-            var vcatIndex = _core.VerticalCategories.First().IndexToCells.Keys.ToArray()[vIndex - 1];
-
-            return new() { (_core.HorizontalCategories.First().Name, hCatIndex), (_core.VerticalCategories.First().Name, vcatIndex) };
-        }
-
         private void PaintSpreadsheet()
         {
             var p = _pnl_Spreadsheet;
@@ -358,8 +346,8 @@ namespace SpreadCube_WinForms
             Pen pen = new(Color.Black);
             Brush brush = new SolidBrush(Color.Black);
 
-            var horizontalCategories = _core.HCats;
-            var verticalCategories = _core.VCats;
+            var horizontalCategories = _core.HorizontalCategories;
+            var verticalCategories = _core.VerticalCategories;
 
             var textBoxHeight = _tb_activeCell.Height;
 
@@ -396,7 +384,7 @@ namespace SpreadCube_WinForms
 
         private void DrawHorizontalCategories(Graphics g, Pen pen, Brush brush, int initialX)
         {
-            var horizontalCategories = _core.HCats;
+            var horizontalCategories = _core.HorizontalCategories;
             var textBoxHeight = _tb_activeCell.Height;
             var textBoxWidth = _tb_activeCell.Width;
 
@@ -503,13 +491,13 @@ namespace SpreadCube_WinForms
         void DrawCellLines(Graphics g, Pen pen, Brush brush, int startingX, int startingY)
         {
             var textBoxWidth = _tb_activeCell.Width;
-            var totalHorizontalCellCount = _core.HCats
+            var totalHorizontalCellCount = _core.HorizontalCategories
                 .Select(c => _core.CategoryToIndices[c].Count)
                 .Aggregate((x, y) => x * y);
             var endingX = startingX + totalHorizontalCellCount * textBoxWidth;
 
             var textBoxHeight = _tb_activeCell.Height;
-            var totalVerticalCellCount = _core.VCats
+            var totalVerticalCellCount = _core.VerticalCategories
                 .Select(c => _core.CategoryToIndices[c].Count)
                 .Aggregate((x, y) => x * y);
             var endingY = startingY + totalVerticalCellCount * textBoxHeight;
@@ -535,7 +523,7 @@ namespace SpreadCube_WinForms
 
         void DrawVerticalCategories(Graphics g, Pen pen, Brush brush, int startingX, int initialY)
         {
-            var verticalCategories = _core.VCats;
+            var verticalCategories = _core.VerticalCategories;
             var textBoxHeight = _tb_activeCell.Height;
 
             //calculate the ending x
