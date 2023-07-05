@@ -13,15 +13,7 @@ namespace SpreadCube_WinForms
 
         BehindThe2DView _core;
 
-        Dictionary<Rectangle, (AreaType areaType, object index)> _guiRectangleToBackendProperty;
-        enum AreaType
-        {
-            HorizontalCategories,
-            VerticalCategories,
-            HorizontalIndices,
-            VerticalIndices,
-            Cells,
-        }
+    Dictionary<Rectangle, IArea> _guiRectangleToArea;
 
         public Frm_main()
         {
@@ -168,7 +160,8 @@ namespace SpreadCube_WinForms
             PaintSpreadsheet();
         }
 
-        string _draggedCategory;
+    CategoryListType? _draggedCategoryListType = null;
+    string _draggedCategory = string.Empty;
 
         void Pnl_Spreadsheet__MouseDown(object? sender, MouseEventArgs e)
         {
@@ -204,79 +197,100 @@ namespace SpreadCube_WinForms
              *  else
              *      set to new position
              */
-
-            var matches = _guiRectangleToBackendProperty.Where(pp => pp.Key.Contains(e.Location));
+        IArea area;
+        var matches = _guiRectangleToArea.Where(pp => pp.Key.Contains(e.Location));
             if (matches.Any())
             {
                 if (matches.Count() != 1)
-                    throw new Exception("There can only be one!");
-                var (areaType, anObject) = matches.First().Value;
-                if (areaType == AreaType.HorizontalCategories || areaType == AreaType.VerticalCategories)
-                {
-                    var at = areaType;
-                    if (anObject is (CategoryListType, string))
-                    {
-                        var pair = anObject as (CategoryListType, string)?;
-                        if (pair != null)
+                throw new Exception("There can be only one!");
+
+            area = matches.First().Value;
+            switch (area.Type)
                         {
-                            var (clt, category) = pair.Value;
-                            if (clt == CategoryListType.Category)
-                                _draggedCategory = category;
+                case AreaType.HorizontalCategories:
+                    _draggedCategoryListType = CategoryListType.Horizontal;
+                    AssignDraggedCategory();
+                    break;
+                case AreaType.VerticalCategories:
+                    _draggedCategoryListType = CategoryListType.Vertical;
+                    AssignDraggedCategory();
+                    break;
+                case AreaType.HiddenCategories:
+                    _draggedCategoryListType = CategoryListType.Hidden;
+                    AssignDraggedCategory();
+                    break;
+                case AreaType.HorizontalIndices:
+                case AreaType.VerticalIndices:
+                case AreaType.Cells:
+                default:
+                    throw new NotImplementedException();
                         }
                     }
+
+        void AssignDraggedCategory()
+        {
+            if (area is not Categories categoryArea)
+            {
+                _draggedCategoryListType = null;
+                throw new Exception("big error here");
                 }
-                else
-                    throw new NotImplementedException("I'll get to this. Don't rush me!");
+
+            if (categoryArea.Cell is CategoryCell categoryCell)
+                _draggedCategory = categoryCell.Name;
             }
         }
 
         void Pnl_Spreadsheet__MouseUp(object? sender, MouseEventArgs e)
         {
-            var matches = _guiRectangleToBackendProperty.Where(pp => pp.Key.Contains(e.Location));
+        IArea area;
+        var matches = _guiRectangleToArea.Where(pp => pp.Key.Contains(e.Location));
             if (matches.Any())
             {
                 if (matches.Count() != 1)
-                    throw new Exception("There can only be one!");
-                var (areaType, anObject) = matches.First().Value;
-                if (!string.IsNullOrWhiteSpace(_draggedCategory) &&
-                    (areaType == AreaType.HorizontalCategories || areaType == AreaType.VerticalCategories))
+                throw new Exception("There can be only one!");
+
+            area = matches.First().Value;
+            switch (area.Type)
                 {
-                    if (anObject is (CategoryListType, int))
+                case AreaType.HorizontalCategories:
+                    MoveCategory(CategoryListType.Horizontal);
+                    break;
+                case AreaType.VerticalCategories:
+                    MoveCategory(CategoryListType.Vertical);
+                    break;
+                case AreaType.HiddenCategories:
+                    MoveCategory(CategoryListType.Hidden);
+                    break;
+                case AreaType.HorizontalIndices:
+                case AreaType.VerticalIndices:
+                case AreaType.Cells:
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+
+        void MoveCategory(CategoryListType categoryList)
                     {
-                        var pair = anObject as (CategoryListType, int)?;
-                        if (pair != null)
+            if (area is not Categories categoryArea)
+                throw new Exception("big error here");
+
+            if (_draggedCategoryListType != null && !string.IsNullOrWhiteSpace(_draggedCategory))
                         {
-                            var (categoryListType, categoryIndex) = pair.Value;
-                            if (categoryListType == CategoryListType.DropCell)
+                if (categoryArea.Cell is DropCell dropCell)
                             {
-                                if (areaType == AreaType.HorizontalCategories)
-                                    MoveCategory(categoryIndex, areaType);
-                                else if (areaType == AreaType.VerticalCategories)
-                                    MoveCategory(categoryIndex, areaType);
+                    _core.MoveCategory(_draggedCategory, _draggedCategoryListType.Value, categoryList, dropCell.Index);
                                 Refresh();
                             }
                         }
-                    }
-                }
                 else
                     throw new NotImplementedException("I'll get to this, don't rush me!");
-            }
+
+            _draggedCategoryListType = null;
             _draggedCategory = string.Empty;
+            }
         }
 
-        void MoveCategory(int newIndex, AreaType receivingArea)
-        {
-            if (string.IsNullOrWhiteSpace(_draggedCategory))
-                return;
-
-            List<string> oldList;
-            List<string> newList;
-            if (receivingArea == AreaType.HorizontalCategories)
-            {
-                oldList = _core.VerticalCategories;
-                newList = _core.HorizontalCategories;
-            }
-            else
+    void Pnl_Spreadsheet__Resize(object? sender, EventArgs e)
             {
                 oldList = _core.HorizontalCategories;
                 newList = _core.VerticalCategories;
@@ -565,7 +579,7 @@ namespace SpreadCube_WinForms
 
                 //Note: Add point to drop cell:
                 listCell = new(upperLeft.X, upperLeft.Y, lowerRight.X - upperLeft.X, lowerRight.Y - upperLeft.Y);
-                _guiRectangleToBackendProperty.Add(listCell, (areaType, (CategoryListType.DropCell, categoryListIndex)));
+            _guiRectangleToArea.Add(listCell, new Categories(areaType, new DropCell(categoryListIndex)));
                 categoryListIndex++;
                 upperLeft.X = varyingX;
 
@@ -577,7 +591,7 @@ namespace SpreadCube_WinForms
                 varyingX += textBoxWidth;
                 lowerRight.X = varyingX;
                 listCell = new(upperLeft.X, upperLeft.Y, lowerRight.X - upperLeft.X, lowerRight.Y - upperLeft.Y);
-                _guiRectangleToBackendProperty.Add(listCell, (areaType, (CategoryListType.Category, category)));
+            _guiRectangleToArea.Add(listCell, new Categories(areaType, new CategoryCell(category)));
                 upperLeft.X = varyingX;
             }
 
@@ -588,7 +602,7 @@ namespace SpreadCube_WinForms
             //Note: Add final point to drop cell:
             lowerRight.X = varyingX;
             listCell = new(upperLeft.X, upperLeft.Y, lowerRight.X - upperLeft.X, lowerRight.Y - upperLeft.Y);
-            _guiRectangleToBackendProperty.Add(listCell, (areaType, (CategoryListType.DropCell, categoryListIndex)));
+        _guiRectangleToArea.Add(listCell, new Categories(areaType, new DropCell(categoryListIndex)));
 
             //Note: Draw final line:
             upperLeft.X = varyingX;

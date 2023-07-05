@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.4.33213.308
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpreadCube WinForms", "SpreadCube WinForms\SpreadCube WinForms.csproj", "{E3136D7F-6DC4-4995-8C93-5C455A4133BC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SpreadCube WinForms", "SpreadCube WinForms\SpreadCube WinForms.csproj", "{E3136D7F-6DC4-4995-8C93-5C455A4133BC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpreadCube Core", "SpreadCube Core\SpreadCube Core.csproj", "{ABCFEF35-29AD-422F-9B83-0ABB6CA6432D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SpreadCube Core", "SpreadCube Core\SpreadCube Core.csproj", "{ABCFEF35-29AD-422F-9B83-0ABB6CA6432D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpreadCube Core UnitTests", "SpreadCube Core UnitTests\SpreadCube Core UnitTests.csproj", "{8A008672-F70E-497F-9642-B67CB728E7A8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{ABCFEF35-29AD-422F-9B83-0ABB6CA6432D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ABCFEF35-29AD-422F-9B83-0ABB6CA6432D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ABCFEF35-29AD-422F-9B83-0ABB6CA6432D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A008672-F70E-497F-9642-B67CB728E7A8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A008672-F70E-497F-9642-B67CB728E7A8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A008672-F70E-497F-9642-B67CB728E7A8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A008672-F70E-497F-9642-B67CB728E7A8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,5 +1,12 @@
 ﻿namespace SpreadCube_Core;
 
+public enum CategoryListType
+{
+    Horizontal,
+    Vertical,
+    Hidden
+}
+
 public class BehindThe2DView
 {
     /* external api:
@@ -22,6 +29,19 @@ public class BehindThe2DView
     //public Dictionary<CellValue, HashSet<(string category, string index)>> CellValueToCoordinates { get; private set; }
     //public Dictionary<HashSet<(string category, string index)>, CellValue> CoordinatesToCellValue { get; private set; }
     //List<CellValue> _allCells { get; set; }
+
+    public BehindThe2DView(List<string> horizontalCategories,
+                           List<string> verticalCategorise,
+                           List<string> hiddenCategories)
+    {
+        HorizontalCategories = horizontalCategories;
+        VerticalCategories = verticalCategorise;
+        HiddenCategories = hiddenCategories;
+
+        //ToDo: Assign with arguments:
+        CategoryToIndices = new();
+        Cursor = new();
+    }
 
     public BehindThe2DView()
     {
@@ -85,6 +105,48 @@ public class BehindThe2DView
     }
 
     static T[] A<T>(params T[] arg) => arg;
+
+    public void MoveCategory(string category, CategoryListType origin, CategoryListType destination, int newIndex)
+    {
+        List<string> oldList;
+        int oldIndex;
+        switch (origin)
+        {
+            case CategoryListType.Horizontal:
+                oldList = HorizontalCategories;
+                oldIndex = HorizontalCategories.IndexOf(category);
+                break;
+            case CategoryListType.Vertical:
+                oldList = VerticalCategories;
+                oldIndex = VerticalCategories.IndexOf(category);
+                break;
+            case CategoryListType.Hidden:
+                oldList = HiddenCategories;
+                oldIndex = HiddenCategories.IndexOf(category);
+                break;
+            default:
+                throw new ArgumentException("The given category list type doesn't exist");
+        }
+
+        List<string> newList = destination switch
+        {
+            CategoryListType.Horizontal => HorizontalCategories,
+            CategoryListType.Vertical => VerticalCategories,
+            CategoryListType.Hidden => HiddenCategories,
+            _ => throw new ArgumentException("The given category list type doesn't exist")
+        };
+
+        if (newList == oldList)
+        {
+            if (oldIndex == newIndex)
+                return;
+
+            if (oldIndex < newIndex)
+                newIndex--;
+        }
+        oldList.RemoveAt(oldIndex);
+        newList.Insert(newIndex, category);
+    }
 
     //public void SetCellContent(string textContent, List<(string category, string index)> coordinates) =>
     //    GetCell(coordinates).TextContent = textContent;
