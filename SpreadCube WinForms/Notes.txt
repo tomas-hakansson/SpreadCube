@@ -13,5 +13,17 @@
     av en variabel i formuläret. Då behöver Paint bara anropa en funktion på den variabeln,
     så beror det på vad den pekar på vad som blir ritat. Så håller man ner storleken på formuläret dessutom."
 
+    "En grej man kan göra, är att docka en panel i formuläret, och ställa in AutoScroll på den.
+    Sen lägger du en PictureBox på ungefär position 4;4 i panelen. Sen räknar du ut hur stort din bild kommer att bli,
+    och sätter den storleken på pictureboxen. Då kommer AutoScroll aktiveras på panelen om pictureboxen är för stor.
+    Och vips, behöver inte du programmera rullningslisterna!"
+
+    invalidate om den anropas ofta, annars refresh
+        update är ett annat alternativ. Hur många alternativ finns och hur funkar de?
+
+useful sources:
+    excel-style scrolling:
+        https://stackoverflow.com/questions/4486221/scrollbar-value-set-incorrectly
+
 A possible term for the multi-dimensional data structure is "OLAP cube":
     https://en.wikipedia.org/wiki/OLAP_cube
