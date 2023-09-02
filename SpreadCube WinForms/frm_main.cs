@@ -72,7 +72,7 @@ public partial class Frm_main : Form
     protected override void OnSizeChanged(EventArgs e)
     {
         // To create the space in the lower right corner between the two scroll bars:
-        // copied from: https://stackoverflow.com/q/32130907 with minor change.
+        // copied from: https://stackoverflow.com/q/32130907 with minor changes.
         base.OnSizeChanged(e);
         _vScrollBar.MaximumSize = new Size(
             Int32.MaxValue,
@@ -227,7 +227,7 @@ public partial class Frm_main : Form
 
     void ScrollBar__ValueChanged(object? sender, EventArgs e)
     {
-        Invalidate();
+        _pnl_Spreadsheet.Invalidate();
     }
 
     string previousText = string.Empty;
@@ -284,18 +284,186 @@ public partial class Frm_main : Form
         var startingX = verticalCategories.Count * _tb_activeCell.Width;
         var startingY = textBoxHeight + horizontalCategories.Count * textBoxHeight;
 
+
         //g.DrawString("width value: ", Font, brush, 0, 0);
         //g.DrawString(_pnl_Spreadsheet.Width.ToString(), Font, brush, 120, 0);
         //g.DrawString("height value: ", Font, brush, 0, 16);
         //g.DrawString(_pnl_Spreadsheet.Height.ToString(), Font, brush, 120, 16);
 
+        //g.DrawString("Vscroll value: ", Font, brush, 0, 0);
+        //g.DrawString(_vScrollBar.Value.ToString(), Font, brush, 120, 0);
+        //g.DrawString("Hscroll value: ", Font, brush, 0, 16);
+        //g.DrawString(_hScrollBar.Value.ToString(), Font, brush, 120, 16);
+
         //todo:
         //  simple experiments to figure out scrollbars.
+        //      figure out how to scale the scroll thumb (box) properly
+        //      figure out how I want scrolling to work
+        //      figure out how to draw parts of characters 
 
         DrawHorizontalCategories(g, pen, brush, startingX);
-        DrawHorizontalIndices(g, pen, brush, startingX, textBoxHeight, horizontalCategories);
-        DrawCellLines(g, pen, brush, startingX, startingY);
-        DrawVerticalIndices(g, pen, brush, 0, startingY, verticalCategories);
+
+        #region scrolltest
+
+        //horizontal
+
+        //var xLengths = new List<(float, int)>();
+        //var xIndex = 0;
+        //for (int i = 1; i < 28; i++)
+        //{
+        //    xLengths.Add((100, xIndex));
+        //    xIndex++;
+        //}
+
+        ////var totalViewWidth = xLengths.Sum(xl => xl.Item1);
+        ////var windowWidth = _pnl_Spreadsheet.Width;
+
+        //float xScrollOffset = _hScrollBar.Value;
+
+        //var xAccLengths = new List<(float, int)>();
+        //float xAcc = 0;
+        //var xState = 0;
+        //for (int j = 0; j < xLengths.Count; j++)
+        //{
+        //    var (cv, ci) = xLengths[j];
+        //    if (xState == 0)
+        //    {
+        //        if (xScrollOffset <= cv)
+        //        {
+        //            xAcc = cv - xScrollOffset;
+        //            xAccLengths.Add((xAcc, ci));
+        //            xState++;
+        //        }
+        //        else
+        //        {
+        //            xScrollOffset -= cv;
+        //            continue;
+        //        }
+        //    }
+        //    else
+        //    {
+        //        xAcc += cv;
+        //        xAccLengths.Add((xAcc, ci));
+        //    }
+        //}
+        //foreach (var (x, ci) in xAccLengths)
+        //{
+        //    //g.DrawString(ci.ToString(), Font, brush, new PointF(x, 50));
+        //    //g.DrawLine(pen, x, 50, x, 100);
+        //}
+        //var (finalX, finalXIndex) = xAccLengths.Last();
+
+        ////vertical:
+
+        //var yLengths = new List<(float, int)>();
+        //var yIndex = 0;
+        //for (int i = 1; i < 28; i++)
+        //{
+        //    yLengths.Add((100, yIndex));
+        //    yIndex++;
+        //}
+
+        ////var totalViewWidth = xLengths.Sum(xl => xl.Item1);
+        ////var windowWidth = _pnl_Spreadsheet.Width;
+
+        //float yScrollOffset = _vScrollBar.Value;
+
+        //var yAccLengths = new List<(float, int)>();
+        //float yAcc = 0;
+        //var yState = 0;
+        //for (int j = 0; j < yLengths.Count; j++)
+        //{
+        //    var (cv, ci) = yLengths[j];
+        //    if (yState == 0)
+        //    {
+        //        if (yScrollOffset <= cv)
+        //        {
+        //            yAcc = cv - yScrollOffset;
+        //            yAccLengths.Add((yAcc, ci));
+        //            yState++;
+        //        }
+        //        else
+        //        {
+        //            yScrollOffset -= cv;
+        //            continue;
+        //        }
+        //    }
+        //    else
+        //    {
+        //        yAcc += cv;
+        //        yAccLengths.Add((yAcc, ci));
+        //    }
+        //}
+        //foreach (var (y, ci) in yAccLengths)
+        //{
+        //    //g.DrawString(ci.ToString(), Font, brush, new PointF(50, y));
+        //    //g.DrawLine(pen, x, 50, x, 100);
+        //}
+        //var (finalY, finalYIndex) = yAccLengths.Last();
+        #endregion scrolltest
+
+
+        DrawCornerBox(g, pen);
+
+        //the horizontal indices:
+        List<List<int>> lengths = IndexSizes(horizontalCategories, _tb_activeCell.Width);
+        List<List<int>> accumulatedLengths = new();
+        foreach (var innerLength in lengths)
+            accumulatedLengths.Add(AccumulatedIndexSizes(innerLength, startingX, _hScrollBar.Value));
+
+        //draw all the vertical lines of the horizontal indices:
+        var horizontalLineLength = accumulatedLengths.First().Last();
+        int thisy = _tb_activeCell.Height * 2;
+        foreach (var _ in horizontalCategories)
+        {
+            g.DrawLine(pen, new Point(startingX, thisy), new Point(horizontalLineLength, thisy));
+            thisy += _tb_activeCell.Height;
+        }
+        //draw all the horizontal lines of the horizontal indices:
+        accumulatedLengths.Reverse();
+        int thatY = _tb_activeCell.Height;
+        foreach (var innerLengths in accumulatedLengths)
+        {
+            foreach (var length in innerLengths)
+                g.DrawLine(pen, new Point(length, thatY), new Point(length, thatY + _tb_activeCell.Height));
+            thatY += _tb_activeCell.Height;
+        }
+
+        var totalWidth = horizontalLineLength;
+
+        //the vertical indices:
+        List<List<int>> heights = IndexSizes(verticalCategories, _tb_activeCell.Height);
+        List<List<int>> accumulatedHeights = new();
+        foreach (var innerHeight in heights)
+            accumulatedHeights.Add(AccumulatedIndexSizes(innerHeight, startingY, _vScrollBar.Value));
+
+        //draw all the horizontal lines of the vertical indices:
+        var verticalLineLength = accumulatedHeights.First().Last();
+        int thisX = 0;
+        foreach (var _ in verticalCategories)
+        {
+            g.DrawLine(pen, new Point(thisX, startingY), new Point(thisX, verticalLineLength));
+            thisX += _tb_activeCell.Width;
+        }
+        //draw all the vertical lines of the vertical indices:
+        accumulatedHeights.Reverse();
+        int thatX = 0;
+        foreach (var innerHeights in accumulatedHeights)
+        {
+            foreach (var height in innerHeights)
+                g.DrawLine(pen, new Point(thatX, height), new Point(thatX + _tb_activeCell.Width, height));
+            thatX += _tb_activeCell.Width;
+        }
+
+        var totalHeight = verticalLineLength;
+
+        //var totalWidth = (int)Math.Round(finalX + g.MeasureString(finalXIndex.ToString(), Font).Width);
+        //var totalHeight = (int)Math.Round(finalY + g.MeasureString(finalYIndex.ToString(), Font).Width);
+        SetScrollBarValues(totalWidth, totalHeight);
+        //DrawHorizontalIndices(g, pen, brush, startingX, textBoxHeight, horizontalCategories);
+
+        //DrawCellLines(g, pen, brush, startingX, startingY);
+        //DrawVerticalIndices(g, pen, brush, 0, startingY, verticalCategories);
         DrawVerticalCategories(g, pen, brush, startingX, startingY);
 
         ////Note: Write the cell contents:
@@ -312,6 +480,158 @@ public partial class Frm_main : Form
         //    }
         //    height += tbHeigth;
         //}
+    }
+
+    private void DrawCornerBox(Graphics g, Pen pen)
+    {
+        var nrOfHorizontalCategories = _core.HorizontalCategories.Count;
+        var nrOfVerticalCategories = _core.VerticalCategories.Count;
+        var textBoxHeight = _tb_activeCell.Height;
+        var textBoxWidth = _tb_activeCell.Width;
+        //Vertical line:
+        int x = nrOfVerticalCategories * textBoxWidth;
+        int y = nrOfHorizontalCategories * textBoxHeight + textBoxHeight;
+        g.DrawLine(pen, new Point(x, textBoxHeight), new Point(x, y));
+        //Horizontal line:
+        g.DrawLine(pen, new Point(0, y), new Point(x, y));
+    }
+
+    List<int> AccumulatedIndexSizes(List<int> lengths, int startingPosition, int offset)
+    {
+        List<int> result = new();
+        int acc = startingPosition;
+        int i = 0;
+        for (; i < lengths.Count; i++)
+        {
+            var cv = lengths[i];
+            if (offset <= cv)
+            {
+                acc += cv - offset;
+                result.Add(acc);
+                AccumulatedIndexSizes2ndState();
+                return result;
+            }
+            else
+            {
+                offset -= cv;
+                continue;
+            }
+        }
+
+        return result;
+
+        void AccumulatedIndexSizes2ndState()
+        {
+            i++;
+            for (; i < lengths.Count; i++)
+            {
+                var cv = lengths[i];
+                acc += cv;
+                result.Add(acc);
+            }
+        }
+    }
+
+    private List<List<int>> IndexSizes(List<string> categories, int baseSize)
+    {
+        List<List<int>> result = new();
+        var countsAndSizes = IndexCountsAndSizes(categories, baseSize);
+        foreach (var (count, size) in countsAndSizes)
+            result.Add(Enumerable.Repeat(size, count).ToList());
+        return result;
+    }
+
+    List<(int count, int width)> IndexCountsAndSizes(List<string> categories, int baseSize)
+    {
+        var firstCategory = categories.First();
+        var currentIndices = _core.CategoryToIndices[firstCategory];
+
+        int currentCount = currentIndices.Count;
+        if (categories.Count == 1)
+            return new List<(int count, int width)>() { (currentCount, baseSize) };
+
+        var result = IndexCountsAndSizes(categories.Skip(1).ToList(), baseSize);
+
+        var (pc, pw) = result.Last();
+        var currentCellWidth = pc * pw;
+
+        for (int i = 0; i < result.Count; i++)
+        {
+            var (previousCount, previousWidth) = result[i];
+            result[i] = (previousCount * currentCount, previousWidth);
+        }
+
+        result.Add((currentCount, currentCellWidth));
+
+        return result;
+    }
+
+    /// <summary>
+    /// Method copied with minor modifications from:
+    /// https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.scrollbar.largechange
+    /// </summary>
+    /// <param name="hMaximum"></param>
+    public void SetScrollBarValues(int hMaximum, int vMaximum)
+    {
+        //Set the following scrollbar properties:
+
+        //Minimum: Set to 0
+
+        //SmallChange and LargeChange: Per UI guidelines, these must be set
+        //    relative to the size of the view that the user sees, not to
+        //    the total size including the unseen part.  In this example,
+        //    these must be set relative to the picture box, not to the image.
+
+        //Maximum: Calculate in steps:
+        //Step 1: The maximum to scroll is the size of the unseen part.
+        //Step 2: Add the size of visible scrollbars if necessary.
+        //Step 3: Add an adjustment factor of ScrollBar.LargeChange.
+
+        //Configure the horizontal scrollbar
+        //---------------------------------------------
+
+        var hScrollBar1 = _hScrollBar;
+        var vScrollBar1 = _vScrollBar;
+
+        if (hScrollBar1.Visible)
+        {
+            hScrollBar1.Minimum = 0;
+            //this.hScrollBar1.SmallChange = this.pictureBox1.Width / 20;
+            hScrollBar1.SmallChange = _pnl_Spreadsheet.Width / 20;
+            //this.hScrollBar1.LargeChange = this.pictureBox1.Width / 10;
+            hScrollBar1.LargeChange = _pnl_Spreadsheet.Width / 10;
+
+            //this.hScrollBar1.Maximum = this.pictureBox1.Image.Size.Width - pictureBox1.ClientSize.Width;  //step 1
+            hScrollBar1.Maximum = hMaximum;
+
+            if (vScrollBar1.Visible) //step 2
+            {
+                hScrollBar1.Maximum += vScrollBar1.Width;
+            }
+
+            hScrollBar1.Maximum += hScrollBar1.LargeChange; //step 3
+        }
+
+        //Configure the vertical scrollbar
+        //---------------------------------------------
+        if (vScrollBar1.Visible)
+        {
+            vScrollBar1.Minimum = 0;
+            //this.vScrollBar1.SmallChange = this.pictureBox1.Height / 20;
+            vScrollBar1.SmallChange = _pnl_Spreadsheet.Height / 20;
+            //this.vScrollBar1.LargeChange = this.pictureBox1.Height / 10;
+            vScrollBar1.LargeChange = _pnl_Spreadsheet.Height / 10;
+
+            //this.vScrollBar1.Maximum = this.pictureBox1.Image.Size.Height - pictureBox1.ClientSize.Height; //step 1
+            vScrollBar1.Maximum = vMaximum;
+
+            if (hScrollBar1.Visible) //step 2
+            {
+                vScrollBar1.Maximum += hScrollBar1.Height;
+            }
+
+            vScrollBar1.Maximum += vScrollBar1.LargeChange; //step 3
+        }
     }
 
     private void DrawHorizontalCategories(Graphics g, Pen pen, Brush brush, int initialX)
