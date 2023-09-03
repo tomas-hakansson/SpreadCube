@@ -285,7 +285,10 @@ public partial class Frm_main : Form
         var spreadsheetPanelWidth = _pnl_Spreadsheet.Width;
         var spreadsheetPanelHeight = _pnl_Spreadsheet.Height;
 
-        var startingX = verticalCategories.Count * _tb_activeCell.Width;
+        var horizontalScrollBarValue = _hScrollBar.Value;
+        var verticalScrollBarValue = _vScrollBar.Value;
+
+        var startingX = verticalCategories.Count * textBoxWidth;
         var startingY = textBoxHeight + horizontalCategories.Count * textBoxHeight;
 
 
@@ -323,58 +326,45 @@ public partial class Frm_main : Form
         DrawCornerBox(g, pen);
 
         //the horizontal indices:
-        List<List<int>> lengths = IndexSizes(horizontalCategories, _tb_activeCell.Width);
-        List<List<int>> accumulatedLengths = new();
-        foreach (var innerLength in lengths)
-            accumulatedLengths.Add(AccumulatedIndexSizes(innerLength, startingX, _hScrollBar.Value));
+        List<List<int>> accumulatedLengths = IndexSizes(horizontalCategories, textBoxWidth)
+            .Select(l => AccumulatedIndexSizes(l, startingX, horizontalScrollBarValue)).ToList();
 
-        //draw all the vertical lines of the horizontal indices:
+        //FixMe: When index goes off panel this throws an exception.
         var horizontalLineLength = accumulatedLengths.First().Last();
-        int thisy = _tb_activeCell.Height * 2;
-        foreach (var _ in horizontalCategories)
-        {
-            g.DrawLine(pen, new Point(startingX, thisy), new Point(horizontalLineLength, thisy));
-            thisy += _tb_activeCell.Height;
-        }
-        //draw all the horizontal lines of the horizontal indices:
-        accumulatedLengths.Reverse();
-        int thatY = _tb_activeCell.Height;
+        int horizontalLineY = textBoxHeight * 2;
+        int verticalLineY = textBoxHeight;
         foreach (var innerLengths in accumulatedLengths)
         {
+            //draw all the horizontal lines of the horizontal indices:
+            g.DrawLine(pen, new Point(startingX, horizontalLineY), new Point(horizontalLineLength, horizontalLineY));
+            horizontalLineY += textBoxHeight;
+            //draw all the vertical lines of the horizontal indices:
             foreach (var length in innerLengths)
-                g.DrawLine(pen, new Point(length, thatY), new Point(length, thatY + _tb_activeCell.Height));
-            thatY += _tb_activeCell.Height;
+                g.DrawLine(pen, new Point(length, verticalLineY), new Point(length, verticalLineY + textBoxHeight));
+            verticalLineY += textBoxHeight;
         }
-
-        var totalWidth = horizontalLineLength;
 
         //the vertical indices:
-        List<List<int>> heights = IndexSizes(verticalCategories, _tb_activeCell.Height);
-        List<List<int>> accumulatedHeights = new();
-        foreach (var innerHeight in heights)
-            accumulatedHeights.Add(AccumulatedIndexSizes(innerHeight, startingY, _vScrollBar.Value));
+        List<List<int>> accumulatedHeights = IndexSizes(verticalCategories, textBoxHeight)
+            .Select(h => AccumulatedIndexSizes(h, startingY, verticalScrollBarValue)).ToList();
 
-        //draw all the horizontal lines of the vertical indices:
+        //FixMe: When index goes off panel this throws an exception.
         var verticalLineLength = accumulatedHeights.First().Last();
-        int thisX = 0;
-        foreach (var _ in verticalCategories)
-        {
-            g.DrawLine(pen, new Point(thisX, startingY), new Point(thisX, verticalLineLength));
-            thisX += _tb_activeCell.Width;
-        }
-        //draw all the vertical lines of the vertical indices:
-        accumulatedHeights.Reverse();
-        int thatX = 0;
+        int horizontalLineX = 0;
+        int verticalLineX = textBoxWidth;
         foreach (var innerHeights in accumulatedHeights)
         {
+            //draw all the vertical lines of the vertical indices:
+            g.DrawLine(pen, new Point(verticalLineX, startingY), new Point(verticalLineX, verticalLineLength));
+            verticalLineX += textBoxWidth;
+            //draw all the horizontal lines of the vertical indices:
             foreach (var height in innerHeights)
-                g.DrawLine(pen, new Point(thatX, height), new Point(thatX + _tb_activeCell.Width, height));
-            thatX += _tb_activeCell.Width;
+                g.DrawLine(pen, new Point(horizontalLineX, height), new Point(horizontalLineX + textBoxWidth, height));
+            horizontalLineX += textBoxWidth;
         }
 
-        var totalHeight = verticalLineLength;
-
-        SetScrollBarValues(totalWidth, totalHeight);//FutureExperiment: Try hard coding the values.
+        //Ponder: should these values be constant (a sliding window looking at a constant state) or not?
+        SetScrollBarValues(horizontalLineLength, verticalLineLength);//FutureExperiment: Try hard coding the values.
 
         //DrawHorizontalIndices(g, pen, brush, startingX, textBoxHeight, horizontalCategories);
         //DrawCellLines(g, pen, brush, startingX, startingY);
@@ -460,12 +450,15 @@ public partial class Frm_main : Form
     {
         List<List<int>> result = new();
         var countsAndSizes = IndexCountsAndSizes(categories, baseSize);
-        foreach (var (count, size) in countsAndSizes)
+        for (int i = countsAndSizes.Count - 1; i >= 0; i--)
+        {
+            var (count, size) = countsAndSizes[i];
             result.Add(Enumerable.Repeat(size, count).ToList());
+        }
         return result;
     }
 
-    List<(int count, int width)> IndexCountsAndSizes(List<string> categories, int baseSize)
+    List<(int count, int size)> IndexCountsAndSizes(List<string> categories, int baseSize)
     {
         var firstCategory = categories.First();
         var currentIndices = _core.CategoryToIndices[firstCategory];
