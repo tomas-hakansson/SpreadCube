@@ -382,9 +382,7 @@ public partial class Frm_main : Form
         //Ponder: should these values be constant (a sliding window looking at a constant state) or not?
         SetScrollBarValues(horizontalLineLength, verticalLineLength);//FutureExperiment: Try hard coding the values.
 
-        //DrawHorizontalIndices(g, pen, brush, startingX, textBoxHeight, horizontalCategories);
         //DrawCellLines(g, pen, brush, startingX, startingY);
-        //DrawVerticalIndices(g, pen, brush, 0, startingY, verticalCategories);
 
 
         ////Note: Write the cell contents:
@@ -426,7 +424,10 @@ public partial class Frm_main : Form
         g.DrawLine(pen, new Point(0, y), new Point(x, y));
     }
 
-    List<(string index, int AccumulatedSize, int size)> AccumulatedIndexSizes(List<(string index, int size)> values, int startingPosition, int offset)
+    List<(string index, int AccumulatedSize, int size)> AccumulatedIndexSizes(
+        List<(string index, int size)> values,
+        int startingPosition,
+        int offset)
     {
         List<(string, int, int)> result = new();
         int acc = startingPosition;
@@ -589,13 +590,14 @@ public partial class Frm_main : Form
         }
     }
 
-    private void DrawCategories(Graphics g,
-                                Pen pen,
-                                Brush brush,
-                                int startingX,
-                                int startingY,
-                                int endingY,
-                                AreaType areaType)
+    private void DrawCategories(
+        Graphics g,
+        Pen pen,
+        Brush brush,
+        int startingX,
+        int startingY,
+        int endingY,
+        AreaType areaType)
     {
         Point upper = new(startingX, startingY);
         Point lower = new(startingX, endingY);
@@ -647,90 +649,6 @@ public partial class Frm_main : Form
         //Note: Draw final line:
         upper.X = varyingX;
         g.DrawLine(pen, upper, lower);
-    }
-
-    void DrawHorizontalIndices(Graphics g, Pen pen, Brush brush, int startingX, int startingY, List<string> categories)
-    {
-        /* for current category.
-         *  use remaining categories to figure out width
-         *  draw per each index of current category and for each call self recursively
-         */
-
-        var textBoxWidth = _tb_activeCell.Width;
-        var textBoxHeight = _tb_activeCell.Height;
-
-        var currentIndices = _core.CategoryToIndices[categories.First()];
-        var remainingCategories = categories.Skip(1).ToList();
-        int cellWidth;
-        if (remainingCategories.Any())
-        {
-            var remainingCellCount = remainingCategories
-                .Select(c => _core.CategoryToIndices[c].Count)
-                .Aggregate((x, y) => x * y);
-            cellWidth = remainingCellCount * textBoxWidth;
-        }
-        else
-            cellWidth = textBoxWidth;
-
-        //Note: Draw horizontal line:
-        var horizontalLineLength = startingX + (cellWidth * currentIndices.Count);
-        g.DrawLine(pen, new Point(startingX, startingY), new Point(horizontalLineLength, startingY));
-
-        //Note: Draw vertical lines and write indices:
-        var varyingX = startingX;
-        var nextY = startingY + textBoxHeight;
-        foreach (var index in currentIndices)
-        {
-            g.DrawLine(pen, new Point(varyingX, startingY), new Point(varyingX, startingY + textBoxHeight));
-            g.DrawString(index, Font, brush, new Point(varyingX, startingY));
-
-            if (remainingCategories.Any())
-                DrawHorizontalIndices(g, pen, brush, varyingX, nextY, remainingCategories);
-            varyingX += cellWidth;
-        }
-        g.DrawLine(pen, new Point(horizontalLineLength, startingY), new Point(horizontalLineLength, startingY + textBoxHeight));
-    }
-
-    void DrawVerticalIndices(Graphics g, Pen pen, Brush brush, int startingX, int startingY, List<string> categories)
-    {
-        /* for current category.
-         *  use remaining categories to figure out width
-         *  draw per each index of current category and for each call self recursively
-         */
-
-        var textBoxWidth = _tb_activeCell.Width;
-        var textBoxHeight = _tb_activeCell.Height;
-
-        var currentIndices = _core.CategoryToIndices[categories.First()];
-        var remainingCategories = categories.Skip(1).ToList();
-        int cellHeight;
-        if (remainingCategories.Any())
-        {
-            var remainingCellCount = remainingCategories
-                .Select(c => _core.CategoryToIndices[c].Count)
-                .Aggregate((x, y) => x * y);
-            cellHeight = remainingCellCount * textBoxHeight;
-        }
-        else
-            cellHeight = textBoxHeight;
-
-        //Note: Draw vertical line:
-        var verticalLineLength = startingY + (cellHeight * currentIndices.Count);
-        g.DrawLine(pen, new Point(startingX, startingY), new Point(startingX, verticalLineLength));
-
-        //Note: Draw horizontal lines and write indices:
-        var varyingY = startingY;
-        var nextX = startingX + textBoxWidth;
-        foreach (var index in currentIndices)
-        {
-            g.DrawLine(pen, new Point(startingX, varyingY), new Point(startingX + textBoxWidth, varyingY));
-            g.DrawString(index, Font, brush, new Point(startingX, varyingY));
-
-            if (remainingCategories.Any())
-                DrawVerticalIndices(g, pen, brush, nextX, varyingY, remainingCategories);
-            varyingY += cellHeight;
-        }
-        g.DrawLine(pen, new Point(startingX, verticalLineLength), new Point(startingX + textBoxWidth, verticalLineLength));
     }
 
     void DrawCellLines(Graphics g, Pen pen, Brush brush, int startingX, int startingY)
