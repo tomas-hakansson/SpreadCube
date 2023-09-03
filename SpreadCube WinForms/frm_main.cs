@@ -325,21 +325,13 @@ public partial class Frm_main : Form
         DrawCornerBox(g, pen);
 
         //the horizontal indices:
-        List<IEnumerable<(int length, int accumulatedLength, string index)>> lengthValues = new();
-        var horizontalIndexLengths = IndexSizes(horizontalCategories, textBoxWidth);
-        for (int i = 0; i < horizontalIndexLengths.Count; i++)
-        {
-            var lengths = horizontalIndexLengths[i];
-            var accumulatedLengths = AccumulatedIndexSizes(lengths, startingX, horizontalScrollBarValue);
+        var lengthValues = IndicesWithSizes(horizontalCategories, textBoxWidth)
+            .Select((v, i) => AccumulatedIndexSizes(v, startingX, horizontalScrollBarValue));
 
-            var indices = _core.CategoryToIndices[horizontalCategories[i]];
-            var repeatingIndices = Repeat(indices);
-
-            lengthValues.Add(lengths.Zip(accumulatedLengths, repeatingIndices));
-        }
+        int xTextBounds = verticalCategories.Count * textBoxWidth;
 
         //FixMe: When index goes off panel this throws an exception.
-        var horizontalLineLength = lengthValues.First().Last().accumulatedLength;
+        var horizontalLineLength = lengthValues.First().Last().AccumulatedSize;
         var horizontalLineY = textBoxHeight * 2;
         var HorizontalTextY = textBoxHeight;
         var verticalLineY = textBoxHeight;
@@ -349,10 +341,11 @@ public partial class Frm_main : Form
             g.DrawLine(pen, new Point(startingX, horizontalLineY), new Point(horizontalLineLength, horizontalLineY));
             horizontalLineY += textBoxHeight;
             //draw all the vertical lines of the horizontal indices:
-            foreach (var (length, accumulatedLength, index) in innerLengths)
+            foreach (var (index, accumulatedLength, length) in innerLengths)
             {
                 g.DrawLine(pen, new Point(accumulatedLength, verticalLineY), new Point(accumulatedLength, verticalLineY + textBoxHeight));
-                g.DrawString(index, Font, brush, new Point(accumulatedLength - length, HorizontalTextY));
+                var x = Math.Max(xTextBounds, accumulatedLength - length);
+                g.DrawString(index, base.Font, brush, new Point(x, HorizontalTextY));
             }
 
             verticalLineY += textBoxHeight;
@@ -360,23 +353,13 @@ public partial class Frm_main : Form
         }
 
         //the vertical indices:
-        List<IEnumerable<(int height, int accumulatedHeight, string index)>> heightValues = new();
-        var verticalIndexHeights = IndexSizes(verticalCategories, textBoxHeight);
-        for (int i = 0; i < verticalIndexHeights.Count; i++)
-        {
-            var heights = verticalIndexHeights[i];
-            var accumulatedHeights = AccumulatedIndexSizes(heights, startingY, verticalScrollBarValue);
+        var heightValues = IndicesWithSizes(verticalCategories, textBoxHeight)
+            .Select((v, i) => AccumulatedIndexSizes(v, startingY, verticalScrollBarValue));
 
-            var indices = _core.CategoryToIndices[verticalCategories[i]];
-            var repeatingIndices = Repeat(indices);
-
-            heightValues.Add(heights.Zip(accumulatedHeights, repeatingIndices));
-        }
-        //List<List<int>> accumulatedHeights = IndexSizes(verticalCategories, textBoxHeight)
-        //    .Select(h => AccumulatedIndexSizes(h, startingY, verticalScrollBarValue)).ToList();
+        int yTextBounds = horizontalCategories.Count * textBoxHeight + textBoxHeight;
 
         //FixMe: When index goes off panel this throws an exception.
-        var verticalLineLength = heightValues.First().Last().accumulatedHeight;
+        var verticalLineLength = heightValues.First().Last().AccumulatedSize;
         var horizontalLineX = 0;
         var verticalLineX = textBoxWidth;
         var verticalTextX = 0;
@@ -386,10 +369,11 @@ public partial class Frm_main : Form
             g.DrawLine(pen, new Point(verticalLineX, startingY), new Point(verticalLineX, verticalLineLength));
             verticalLineX += textBoxWidth;
             //draw all the horizontal lines of the vertical indices:
-            foreach (var (height, accumulatedHeight, index) in innerHeights)
+            foreach (var (index, accumulatedHeight, height) in innerHeights)
             {
                 g.DrawLine(pen, new Point(horizontalLineX, accumulatedHeight), new Point(horizontalLineX + textBoxWidth, accumulatedHeight));
-                g.DrawString(index, Font, brush, new Point(verticalTextX, accumulatedHeight - height));
+                var y = Math.Max(yTextBounds, accumulatedHeight - height);
+                g.DrawString(index, base.Font, brush, new Point(verticalTextX, y));
             }
             horizontalLineX += textBoxWidth;
             verticalTextX += textBoxWidth;
@@ -419,22 +403,6 @@ public partial class Frm_main : Form
         //}
     }
 
-    /// <summary>
-    /// Repeats the given sequence infinitely.
-    /// </summary>
-    /// <param name="values"></param>
-    /// <returns></returns>
-    static IEnumerable<string> Repeat(IList<string> values)
-    {
-        int index = 0;
-        while (true)
-        {
-            yield return values[index];
-            index++;
-            index %= values.Count;
-        }
-    }
-
     void DrawUpperCategorySeparator(Graphics g, Pen pen) =>
         g.DrawLine(pen, new Point(0, _tb_activeCell.Height), new Point(_pnl_Spreadsheet.Width, _tb_activeCell.Height));
 
@@ -458,18 +426,18 @@ public partial class Frm_main : Form
         g.DrawLine(pen, new Point(0, y), new Point(x, y));
     }
 
-    List<int> AccumulatedIndexSizes(List<int> lengths, int startingPosition, int offset)
+    List<(string index, int AccumulatedSize, int size)> AccumulatedIndexSizes(List<(string index, int size)> values, int startingPosition, int offset)
     {
-        List<int> result = new();
+        List<(string, int, int)> result = new();
         int acc = startingPosition;
         int i = 0;
-        for (; i < lengths.Count; i++)
+        for (; i < values.Count; i++)
         {
-            var cv = lengths[i];
+            var (ci, cv) = values[i];
             if (offset <= cv)
             {
                 acc += cv - offset;
-                result.Add(acc);
+                result.Add((ci ,acc, cv));
                 AccumulatedIndexSizes2ndState();
                 return result;
             }
@@ -485,25 +453,47 @@ public partial class Frm_main : Form
         void AccumulatedIndexSizes2ndState()
         {
             i++;
-            for (; i < lengths.Count; i++)
+            for (; i < values.Count; i++)
             {
-                var cv = lengths[i];
+                var (ci, cv) = values[i];
                 acc += cv;
-                result.Add(acc);
+                result.Add((ci, acc, cv));
             }
         }
     }
 
-    private List<List<int>> IndexSizes(List<string> categories, int baseSize)
+    private List<List<(string index, int size)>> IndicesWithSizes(List<string> categories, int baseSize)
     {
-        List<List<int>> result = new();
+        List<List<(string, int)>> result = new();
         var countsAndSizes = IndexCountsAndSizes(categories, baseSize);
-        for (int i = countsAndSizes.Count - 1; i >= 0; i--)
+
+        for (int categoryIndex = 0, countIndex = countsAndSizes.Count - 1; countIndex >= 0; categoryIndex++, countIndex--)
         {
-            var (count, size) = countsAndSizes[i];
-            result.Add(Enumerable.Repeat(size, count).ToList());
+            var indices = _core.CategoryToIndices[categories[categoryIndex]];
+            var repeatingIndices = Repeat(indices);
+
+            var (count, size) = countsAndSizes[countIndex];
+            var Sizes = Enumerable.Repeat(size, count);
+
+            result.Add(repeatingIndices.Zip(Sizes).ToList());
         }
         return result;
+    }
+
+    /// <summary>
+    /// Repeats the given sequence infinitely.
+    /// </summary>
+    /// <param name="values"></param>
+    /// <returns></returns>
+    static IEnumerable<string> Repeat(IList<string> values)
+    {
+        int index = 0;
+        while (true)
+        {
+            yield return values[index];
+            index++;
+            index %= values.Count;
+        }
     }
 
     List<(int count, int size)> IndexCountsAndSizes(List<string> categories, int baseSize)
