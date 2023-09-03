@@ -279,7 +279,11 @@ public partial class Frm_main : Form
         var horizontalCategories = _core.HorizontalCategories;
         var verticalCategories = _core.VerticalCategories;
 
+        var textBoxWidth = _tb_activeCell.Width;
         var textBoxHeight = _tb_activeCell.Height;
+
+        var spreadsheetPanelWidth = _pnl_Spreadsheet.Width;
+        var spreadsheetPanelHeight = _pnl_Spreadsheet.Height;
 
         var startingX = verticalCategories.Count * _tb_activeCell.Width;
         var startingY = textBoxHeight + horizontalCategories.Count * textBoxHeight;
@@ -297,113 +301,24 @@ public partial class Frm_main : Form
 
         //todo:
         //  simple experiments to figure out scrollbars.
-        //      figure out how to scale the scroll thumb (box) properly
         //      figure out how I want scrolling to work
         //      figure out how to draw parts of characters 
 
-        DrawHiddenCategories(g, pen, brush);
-        DrawHorizontalCategories(g, pen, brush);
-        DrawUpperCategorySeparator(g, pen, textBoxHeight);
+        var nrOfHCats = horizontalCategories.Count;
+        var catWidth = nrOfHCats * textBoxWidth;
+        var joinWidth = (nrOfHCats + 1) * (textBoxWidth / 4);
+        var categoryListWidth = catWidth + joinWidth;
 
-        #region scrolltest
+        List<(AreaType areaType, int startingX, int startingY, int endingY)> categoryListValues = new() {
+            (AreaType.HiddenCategories, 0, 0, textBoxHeight),
+            (AreaType.HorizontalCategories, spreadsheetPanelWidth - categoryListWidth, 0, textBoxHeight),
+            (AreaType.VerticalCategories, 0, spreadsheetPanelHeight - textBoxHeight, spreadsheetPanelHeight)};
 
-        //horizontal
+        foreach (var item in categoryListValues)
+            DrawCategories(g, pen, brush, item.startingX, item.startingY, item.endingY, item.areaType);
 
-        //var xLengths = new List<(float, int)>();
-        //var xIndex = 0;
-        //for (int i = 1; i < 28; i++)
-        //{
-        //    xLengths.Add((100, xIndex));
-        //    xIndex++;
-        //}
-
-        ////var totalViewWidth = xLengths.Sum(xl => xl.Item1);
-        ////var windowWidth = _pnl_Spreadsheet.Width;
-
-        //float xScrollOffset = _hScrollBar.Value;
-
-        //var xAccLengths = new List<(float, int)>();
-        //float xAcc = 0;
-        //var xState = 0;
-        //for (int j = 0; j < xLengths.Count; j++)
-        //{
-        //    var (cv, ci) = xLengths[j];
-        //    if (xState == 0)
-        //    {
-        //        if (xScrollOffset <= cv)
-        //        {
-        //            xAcc = cv - xScrollOffset;
-        //            xAccLengths.Add((xAcc, ci));
-        //            xState++;
-        //        }
-        //        else
-        //        {
-        //            xScrollOffset -= cv;
-        //            continue;
-        //        }
-        //    }
-        //    else
-        //    {
-        //        xAcc += cv;
-        //        xAccLengths.Add((xAcc, ci));
-        //    }
-        //}
-        //foreach (var (x, ci) in xAccLengths)
-        //{
-        //    //g.DrawString(ci.ToString(), Font, brush, new PointF(x, 50));
-        //    //g.DrawLine(pen, x, 50, x, 100);
-        //}
-        //var (finalX, finalXIndex) = xAccLengths.Last();
-
-        ////vertical:
-
-        //var yLengths = new List<(float, int)>();
-        //var yIndex = 0;
-        //for (int i = 1; i < 28; i++)
-        //{
-        //    yLengths.Add((100, yIndex));
-        //    yIndex++;
-        //}
-
-        ////var totalViewWidth = xLengths.Sum(xl => xl.Item1);
-        ////var windowWidth = _pnl_Spreadsheet.Width;
-
-        //float yScrollOffset = _vScrollBar.Value;
-
-        //var yAccLengths = new List<(float, int)>();
-        //float yAcc = 0;
-        //var yState = 0;
-        //for (int j = 0; j < yLengths.Count; j++)
-        //{
-        //    var (cv, ci) = yLengths[j];
-        //    if (yState == 0)
-        //    {
-        //        if (yScrollOffset <= cv)
-        //        {
-        //            yAcc = cv - yScrollOffset;
-        //            yAccLengths.Add((yAcc, ci));
-        //            yState++;
-        //        }
-        //        else
-        //        {
-        //            yScrollOffset -= cv;
-        //            continue;
-        //        }
-        //    }
-        //    else
-        //    {
-        //        yAcc += cv;
-        //        yAccLengths.Add((yAcc, ci));
-        //    }
-        //}
-        //foreach (var (y, ci) in yAccLengths)
-        //{
-        //    //g.DrawString(ci.ToString(), Font, brush, new PointF(50, y));
-        //    //g.DrawLine(pen, x, 50, x, 100);
-        //}
-        //var (finalY, finalYIndex) = yAccLengths.Last();
-        #endregion scrolltest
-
+        DrawUpperCategorySeparator(g, pen);
+        DrawLowerCategorySeparator(g, pen);
 
         DrawCornerBox(g, pen);
 
@@ -459,16 +374,12 @@ public partial class Frm_main : Form
 
         var totalHeight = verticalLineLength;
 
-        //var totalWidth = (int)Math.Round(finalX + g.MeasureString(finalXIndex.ToString(), Font).Width);
-        //var totalHeight = (int)Math.Round(finalY + g.MeasureString(finalYIndex.ToString(), Font).Width);
-        SetScrollBarValues(totalWidth, totalHeight);
-        //DrawHorizontalIndices(g, pen, brush, startingX, textBoxHeight, horizontalCategories);
+        SetScrollBarValues(totalWidth, totalHeight);//FutureExperiment: Try hard coding the values.
 
+        //DrawHorizontalIndices(g, pen, brush, startingX, textBoxHeight, horizontalCategories);
         //DrawCellLines(g, pen, brush, startingX, startingY);
         //DrawVerticalIndices(g, pen, brush, 0, startingY, verticalCategories);
 
-        DrawLowerCategorySeparator(g, pen);
-        DrawVerticalCategories(g, pen, brush);
 
         ////Note: Write the cell contents:
         //height = tbHeigth;
@@ -486,8 +397,8 @@ public partial class Frm_main : Form
         //}
     }
 
-    private void DrawUpperCategorySeparator(Graphics g, Pen pen, int textBoxHeight) =>
-        g.DrawLine(pen, new Point(0, textBoxHeight), new Point(_pnl_Spreadsheet.Width, textBoxHeight));
+    private void DrawUpperCategorySeparator(Graphics g, Pen pen) =>
+        g.DrawLine(pen, new Point(0, _tb_activeCell.Height), new Point(_pnl_Spreadsheet.Width, _tb_activeCell.Height));
 
     private void DrawLowerCategorySeparator(Graphics g, Pen pen)
     {
@@ -647,54 +558,9 @@ public partial class Frm_main : Form
         }
     }
 
-    void DrawHiddenCategories(Graphics g, Pen pen, Brush brush)
-    {
-        DrawCategories(g,
-                       pen,
-                       brush,
-                       _core.HiddenCategories,
-                       startingX: 0,
-                       startingY: 0,
-                       endingY: _tb_activeCell.Height,
-                       areaType: AreaType.HiddenCategories);
-    }
-
-    void DrawHorizontalCategories(Graphics g, Pen pen, Brush brush)
-    {
-        var horizontalCategories = _core.HorizontalCategories;
-
-        var nrOfCats = horizontalCategories.Count;
-        var catWidth = nrOfCats * _tb_activeCell.Width;
-        var joinWidth = (nrOfCats + 1) * (_tb_activeCell.Width / 4);
-        var categoryListWidth = catWidth + joinWidth;
-
-        DrawCategories(g,
-                       pen,
-                       brush,
-                       horizontalCategories,
-                       startingX: _pnl_Spreadsheet.Width - categoryListWidth,
-                       startingY: 0,
-                       endingY: _tb_activeCell.Height,
-                       areaType: AreaType.HorizontalCategories);
-    }
-
-
-    void DrawVerticalCategories(Graphics g, Pen pen, Brush brush)
-    {
-        DrawCategories(g,
-                       pen,
-                       brush,
-                       _core.VerticalCategories,
-                       startingX: 0,
-                       startingY: _pnl_Spreadsheet.Height - _tb_activeCell.Height,
-                       endingY: _pnl_Spreadsheet.Height,
-                       AreaType.VerticalCategories);
-    }
-
     private void DrawCategories(Graphics g,
                                 Pen pen,
                                 Brush brush,
-                                List<string> categories,
                                 int startingX,
                                 int startingY,
                                 int endingY,
@@ -706,6 +572,13 @@ public partial class Frm_main : Form
         var categoryListIndex = 0;
         var varyingX = startingX;
         Rectangle listCell;
+        List<string> categories = areaType switch
+        {
+            AreaType.HiddenCategories => _core.HiddenCategories,
+            AreaType.HorizontalCategories => _core.HorizontalCategories,
+            AreaType.VerticalCategories => _core.VerticalCategories,
+            _ => throw new ArgumentException("The only valid AreaType here is category types")
+        };
         foreach (var category in categories)
         {
             //Note: Draw first line:
