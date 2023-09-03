@@ -22,7 +22,6 @@ public partial class Frm_main : Form
 
         _core = new();
         _guiRectangleToArea = new();
-
         //initialise generated components:
         InitializeComponent();
         //Initialise components
@@ -326,41 +325,74 @@ public partial class Frm_main : Form
         DrawCornerBox(g, pen);
 
         //the horizontal indices:
-        List<List<int>> accumulatedLengths = IndexSizes(horizontalCategories, textBoxWidth)
-            .Select(l => AccumulatedIndexSizes(l, startingX, horizontalScrollBarValue)).ToList();
+        List<IEnumerable<(int length, int accumulatedLength, string index)>> lengthValues = new();
+        var horizontalIndexLengths = IndexSizes(horizontalCategories, textBoxWidth);
+        for (int i = 0; i < horizontalIndexLengths.Count; i++)
+        {
+            var lengths = horizontalIndexLengths[i];
+            var accumulatedLengths = AccumulatedIndexSizes(lengths, startingX, horizontalScrollBarValue);
+
+            var indices = _core.CategoryToIndices[horizontalCategories[i]];
+            var repeatingIndices = Repeat(indices);
+
+            lengthValues.Add(lengths.Zip(accumulatedLengths, repeatingIndices));
+        }
 
         //FixMe: When index goes off panel this throws an exception.
-        var horizontalLineLength = accumulatedLengths.First().Last();
-        int horizontalLineY = textBoxHeight * 2;
-        int verticalLineY = textBoxHeight;
-        foreach (var innerLengths in accumulatedLengths)
+        var horizontalLineLength = lengthValues.First().Last().accumulatedLength;
+        var horizontalLineY = textBoxHeight * 2;
+        var HorizontalTextY = textBoxHeight;
+        var verticalLineY = textBoxHeight;
+        foreach (var innerLengths in lengthValues)
         {
             //draw all the horizontal lines of the horizontal indices:
             g.DrawLine(pen, new Point(startingX, horizontalLineY), new Point(horizontalLineLength, horizontalLineY));
             horizontalLineY += textBoxHeight;
             //draw all the vertical lines of the horizontal indices:
-            foreach (var length in innerLengths)
-                g.DrawLine(pen, new Point(length, verticalLineY), new Point(length, verticalLineY + textBoxHeight));
+            foreach (var (length, accumulatedLength, index) in innerLengths)
+            {
+                g.DrawLine(pen, new Point(accumulatedLength, verticalLineY), new Point(accumulatedLength, verticalLineY + textBoxHeight));
+                g.DrawString(index, Font, brush, new Point(accumulatedLength - length, HorizontalTextY));
+            }
+
             verticalLineY += textBoxHeight;
+            HorizontalTextY += textBoxHeight;
         }
 
         //the vertical indices:
-        List<List<int>> accumulatedHeights = IndexSizes(verticalCategories, textBoxHeight)
-            .Select(h => AccumulatedIndexSizes(h, startingY, verticalScrollBarValue)).ToList();
+        List<IEnumerable<(int height, int accumulatedHeight, string index)>> heightValues = new();
+        var verticalIndexHeights = IndexSizes(verticalCategories, textBoxHeight);
+        for (int i = 0; i < verticalIndexHeights.Count; i++)
+        {
+            var heights = verticalIndexHeights[i];
+            var accumulatedHeights = AccumulatedIndexSizes(heights, startingY, verticalScrollBarValue);
+
+            var indices = _core.CategoryToIndices[verticalCategories[i]];
+            var repeatingIndices = Repeat(indices);
+
+            heightValues.Add(heights.Zip(accumulatedHeights, repeatingIndices));
+        }
+        //List<List<int>> accumulatedHeights = IndexSizes(verticalCategories, textBoxHeight)
+        //    .Select(h => AccumulatedIndexSizes(h, startingY, verticalScrollBarValue)).ToList();
 
         //FixMe: When index goes off panel this throws an exception.
-        var verticalLineLength = accumulatedHeights.First().Last();
-        int horizontalLineX = 0;
-        int verticalLineX = textBoxWidth;
-        foreach (var innerHeights in accumulatedHeights)
+        var verticalLineLength = heightValues.First().Last().accumulatedHeight;
+        var horizontalLineX = 0;
+        var verticalLineX = textBoxWidth;
+        var verticalTextX = 0;
+        foreach (var innerHeights in heightValues)
         {
             //draw all the vertical lines of the vertical indices:
             g.DrawLine(pen, new Point(verticalLineX, startingY), new Point(verticalLineX, verticalLineLength));
             verticalLineX += textBoxWidth;
             //draw all the horizontal lines of the vertical indices:
-            foreach (var height in innerHeights)
-                g.DrawLine(pen, new Point(horizontalLineX, height), new Point(horizontalLineX + textBoxWidth, height));
+            foreach (var (height, accumulatedHeight, index) in innerHeights)
+            {
+                g.DrawLine(pen, new Point(horizontalLineX, accumulatedHeight), new Point(horizontalLineX + textBoxWidth, accumulatedHeight));
+                g.DrawString(index, Font, brush, new Point(verticalTextX, accumulatedHeight - height));
+            }
             horizontalLineX += textBoxWidth;
+            verticalTextX += textBoxWidth;
         }
 
         //Ponder: should these values be constant (a sliding window looking at a constant state) or not?
@@ -387,16 +419,32 @@ public partial class Frm_main : Form
         //}
     }
 
-    private void DrawUpperCategorySeparator(Graphics g, Pen pen) =>
+    /// <summary>
+    /// Repeats the given sequence infinitely.
+    /// </summary>
+    /// <param name="values"></param>
+    /// <returns></returns>
+    static IEnumerable<string> Repeat(IList<string> values)
+    {
+        int index = 0;
+        while (true)
+        {
+            yield return values[index];
+            index++;
+            index %= values.Count;
+        }
+    }
+
+    void DrawUpperCategorySeparator(Graphics g, Pen pen) =>
         g.DrawLine(pen, new Point(0, _tb_activeCell.Height), new Point(_pnl_Spreadsheet.Width, _tb_activeCell.Height));
 
-    private void DrawLowerCategorySeparator(Graphics g, Pen pen)
+    void DrawLowerCategorySeparator(Graphics g, Pen pen)
     {
         var y = _pnl_Spreadsheet.Height - _tb_activeCell.Height;
         g.DrawLine(pen, new Point(0, y), new Point(_pnl_Spreadsheet.Width, y));
     }
 
-    private void DrawCornerBox(Graphics g, Pen pen)
+    void DrawCornerBox(Graphics g, Pen pen)
     {
         var nrOfHorizontalCategories = _core.HorizontalCategories.Count;
         var nrOfVerticalCategories = _core.VerticalCategories.Count;
