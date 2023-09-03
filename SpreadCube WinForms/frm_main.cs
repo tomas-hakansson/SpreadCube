@@ -301,7 +301,9 @@ public partial class Frm_main : Form
         //      figure out how I want scrolling to work
         //      figure out how to draw parts of characters 
 
-        DrawHorizontalCategories(g, pen, brush, startingX);
+        DrawHiddenCategories(g, pen, brush);
+        DrawHorizontalCategories(g, pen, brush);
+        DrawUpperCategorySeparator(g, pen, textBoxHeight);
 
         #region scrolltest
 
@@ -464,7 +466,9 @@ public partial class Frm_main : Form
 
         //DrawCellLines(g, pen, brush, startingX, startingY);
         //DrawVerticalIndices(g, pen, brush, 0, startingY, verticalCategories);
-        DrawVerticalCategories(g, pen, brush, startingX, startingY);
+
+        DrawLowerCategorySeparator(g, pen);
+        DrawVerticalCategories(g, pen, brush);
 
         ////Note: Write the cell contents:
         //height = tbHeigth;
@@ -480,6 +484,15 @@ public partial class Frm_main : Form
         //    }
         //    height += tbHeigth;
         //}
+    }
+
+    private void DrawUpperCategorySeparator(Graphics g, Pen pen, int textBoxHeight) =>
+        g.DrawLine(pen, new Point(0, textBoxHeight), new Point(_pnl_Spreadsheet.Width, textBoxHeight));
+
+    private void DrawLowerCategorySeparator(Graphics g, Pen pen)
+    {
+        var y = _pnl_Spreadsheet.Height - _tb_activeCell.Height;
+        g.DrawLine(pen, new Point(0, y), new Point(_pnl_Spreadsheet.Width, y));
     }
 
     private void DrawCornerBox(Graphics g, Pen pen)
@@ -634,26 +647,102 @@ public partial class Frm_main : Form
         }
     }
 
-    private void DrawHorizontalCategories(Graphics g, Pen pen, Brush brush, int initialX)
+    void DrawHiddenCategories(Graphics g, Pen pen, Brush brush)
+    {
+        DrawCategories(g,
+                       pen,
+                       brush,
+                       _core.HiddenCategories,
+                       startingX: 0,
+                       startingY: 0,
+                       endingY: _tb_activeCell.Height,
+                       areaType: AreaType.HiddenCategories);
+    }
+
+    void DrawHorizontalCategories(Graphics g, Pen pen, Brush brush)
     {
         var horizontalCategories = _core.HorizontalCategories;
-        var textBoxHeight = _tb_activeCell.Height;
-        var textBoxWidth = _tb_activeCell.Width;
 
-        //calculate the ending x
-        var totalHorizontalCellCount = horizontalCategories
-            .Select(c => _core.CategoryToIndices[c].Count)
-            .Aggregate((x, y) => x * y);
-        var endingX = _pnl_Spreadsheet.Width;// initialX + totalHorizontalCellCount * textBoxWidth;
-        //subtract the last from the first and we have the starting x
-        var startingX = endingX - CategoryListWidth(horizontalCategories);
-        //Note: Draw horizontal line separating these categories from spreadsheet:
-        g.DrawLine(pen, new Point(0, textBoxHeight), new Point(endingX, textBoxHeight));
-        //Note: Draw vertical lines:
+        var nrOfCats = horizontalCategories.Count;
+        var catWidth = nrOfCats * _tb_activeCell.Width;
+        var joinWidth = (nrOfCats + 1) * (_tb_activeCell.Width / 4);
+        var categoryListWidth = catWidth + joinWidth;
+
+        DrawCategories(g,
+                       pen,
+                       brush,
+                       horizontalCategories,
+                       startingX: _pnl_Spreadsheet.Width - categoryListWidth,
+                       startingY: 0,
+                       endingY: _tb_activeCell.Height,
+                       areaType: AreaType.HorizontalCategories);
+    }
+
+
+    void DrawVerticalCategories(Graphics g, Pen pen, Brush brush)
+    {
+        DrawCategories(g,
+                       pen,
+                       brush,
+                       _core.VerticalCategories,
+                       startingX: 0,
+                       startingY: _pnl_Spreadsheet.Height - _tb_activeCell.Height,
+                       endingY: _pnl_Spreadsheet.Height,
+                       AreaType.VerticalCategories);
+    }
+
+    private void DrawCategories(Graphics g,
+                                Pen pen,
+                                Brush brush,
+                                List<string> categories,
+                                int startingX,
+                                int startingY,
+                                int endingY,
+                                AreaType areaType)
+    {
+        Point upper = new(startingX, startingY);
+        Point lower = new(startingX, endingY);
+        var textBoxWidth = _tb_activeCell.Width;
+        var categoryListIndex = 0;
         var varyingX = startingX;
-        Point upperLeft = new(varyingX, 0);
-        Point lowerRight = new(varyingX, textBoxHeight);
-        DrawCategories(g, pen, brush, horizontalCategories, varyingX, upperLeft, lowerRight, AreaType.HorizontalCategories);
+        Rectangle listCell;
+        foreach (var category in categories)
+        {
+            //Note: Draw first line:
+            g.DrawLine(pen, upper, lower);
+            varyingX += textBoxWidth / 4;
+            lower.X = varyingX;
+
+            //Note: Add point to drop cell:
+            listCell = new(upper.X, upper.Y, lower.X - upper.X, lower.Y - upper.Y);
+            _guiRectangleToArea.Add(listCell, new Categories(areaType, new DropCell(categoryListIndex)));
+            categoryListIndex++;
+            upper.X = varyingX;
+
+            //Note: Draw second line and category:
+            g.DrawLine(pen, upper, lower);
+            g.DrawString(category, Font, brush, upper);
+
+            //Note: Add point to category:
+            varyingX += textBoxWidth;
+            lower.X = varyingX;
+            listCell = new(upper.X, upper.Y, lower.X - upper.X, lower.Y - upper.Y);
+            _guiRectangleToArea.Add(listCell, new Categories(areaType, new CategoryCell(category)));
+            upper.X = varyingX;
+        }
+
+        //Note: Draw penultimate line:
+        g.DrawLine(pen, upper, lower);
+        varyingX += textBoxWidth / 4;
+
+        //Note: Add final point to drop cell:
+        lower.X = varyingX;
+        listCell = new(upper.X, upper.Y, lower.X - upper.X, lower.Y - upper.Y);
+        _guiRectangleToArea.Add(listCell, new Categories(areaType, new DropCell(categoryListIndex)));
+
+        //Note: Draw final line:
+        upper.X = varyingX;
+        g.DrawLine(pen, upper, lower);
     }
 
     void DrawHorizontalIndices(Graphics g, Pen pen, Brush brush, int startingX, int startingY, List<string> categories)
@@ -771,88 +860,5 @@ public partial class Frm_main : Form
             varyingX += textBoxWidth;
         }
         g.DrawLine(pen, new Point(endingX, startingY), new Point(endingX, endingY));
-    }
-
-    void DrawVerticalCategories(Graphics g, Pen pen, Brush brush, int startingX, int initialY)
-    {
-        var verticalCategories = _core.VerticalCategories;
-        var textBoxHeight = _tb_activeCell.Height;
-
-        //calculate the ending x
-        var totalVerticalCellCount = verticalCategories
-            .Select(c => _core.CategoryToIndices[c].Count)
-            .Aggregate((x, y) => x * y);
-        var endingY = _pnl_Spreadsheet.Height;// startingY + textBoxHeight;
-        var startingY = endingY - textBoxHeight;// initialY + totalVerticalCellCount * textBoxHeight;
-        //calculate the width of the category list
-        int catListWidth = CategoryListWidth(verticalCategories);
-        //Note: Draw horizontal line separating these categories from the spreadsheet:
-        g.DrawLine(pen, new Point(0, startingY), new Point(_pnl_Spreadsheet.Width, startingY));
-        //Note: Draw vertical lines:
-        var inititialX = 0;
-        Point upperLeft = new(inititialX, startingY);
-        Point lowerRight = new(inititialX, endingY);
-        DrawCategories(g, pen, brush, verticalCategories, inititialX, upperLeft, lowerRight, AreaType.VerticalCategories);
-    }
-
-    private void DrawCategories(Graphics g,
-                                Pen pen,
-                                Brush brush,
-                                List<string> categories,
-                                int initialX,
-                                Point upperLeft,
-                                Point lowerRight,
-                                AreaType areaType)
-    {
-        var textBoxWidth = _tb_activeCell.Width;
-        var categoryListIndex = 0;
-        var varyingX = initialX;
-        Rectangle listCell;
-        foreach (var category in categories)
-        {
-            //Note: Draw first line:
-            g.DrawLine(pen, upperLeft, lowerRight);
-            varyingX += textBoxWidth / 4;
-            lowerRight.X = varyingX;
-
-            //Note: Add point to drop cell:
-            listCell = new(upperLeft.X, upperLeft.Y, lowerRight.X - upperLeft.X, lowerRight.Y - upperLeft.Y);
-            _guiRectangleToArea.Add(listCell, new Categories(areaType, new DropCell(categoryListIndex)));
-            categoryListIndex++;
-            upperLeft.X = varyingX;
-
-            //Note: Draw second line and category:
-            g.DrawLine(pen, upperLeft, lowerRight);
-            g.DrawString(category, Font, brush, upperLeft);
-
-            //Note: Add point to category:
-            varyingX += textBoxWidth;
-            lowerRight.X = varyingX;
-            listCell = new(upperLeft.X, upperLeft.Y, lowerRight.X - upperLeft.X, lowerRight.Y - upperLeft.Y);
-            _guiRectangleToArea.Add(listCell, new Categories(areaType, new CategoryCell(category)));
-            upperLeft.X = varyingX;
-        }
-
-        //Note: Draw penultimate line:
-        g.DrawLine(pen, upperLeft, lowerRight);
-        varyingX += textBoxWidth / 4;
-
-        //Note: Add final point to drop cell:
-        lowerRight.X = varyingX;
-        listCell = new(upperLeft.X, upperLeft.Y, lowerRight.X - upperLeft.X, lowerRight.Y - upperLeft.Y);
-        _guiRectangleToArea.Add(listCell, new Categories(areaType, new DropCell(categoryListIndex)));
-
-        //Note: Draw final line:
-        upperLeft.X = varyingX;
-        g.DrawLine(pen, upperLeft, lowerRight);
-    }
-
-    int CategoryListWidth(List<string> categories)
-    {
-        var textBoxWidth = _tb_activeCell.Width;
-        var nrOfCats = categories.Count;
-        var catWidth = nrOfCats * textBoxWidth;
-        var joinWidth = (nrOfCats + 1) * (textBoxWidth / 4);
-        return catWidth + joinWidth;
     }
 }
