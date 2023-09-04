@@ -323,64 +323,13 @@ public partial class Frm_main : Form
         DrawLowerCategorySeparator(g, pen);
 
         DrawCornerBox(g, pen);
-
-        //the horizontal indices:
-        var lengthValues = IndicesWithSizes(horizontalCategories, textBoxWidth)
-            .Select((v, i) => AccumulatedIndexSizes(v, startingX, horizontalScrollBarValue));
-
-        int xTextBounds = verticalCategories.Count * textBoxWidth;
-
-        //FixMe: When index goes off panel this throws an exception.
-        var horizontalLineLength = lengthValues.First().Last().AccumulatedSize;
-        var horizontalLineY = textBoxHeight * 2;
-        var HorizontalTextY = textBoxHeight;
-        var verticalLineY = textBoxHeight;
-        foreach (var innerLengths in lengthValues)
-        {
-            //draw all the horizontal lines of the horizontal indices:
-            g.DrawLine(pen, new Point(startingX, horizontalLineY), new Point(horizontalLineLength, horizontalLineY));
-            horizontalLineY += textBoxHeight;
-            //draw all the vertical lines of the horizontal indices:
-            foreach (var (index, accumulatedLength, length) in innerLengths)
-            {
-                g.DrawLine(pen, new Point(accumulatedLength, verticalLineY), new Point(accumulatedLength, verticalLineY + textBoxHeight));
-                var x = Math.Max(xTextBounds, accumulatedLength - length);
-                g.DrawString(index, base.Font, brush, new Point(x, HorizontalTextY));
-            }
-
-            verticalLineY += textBoxHeight;
-            HorizontalTextY += textBoxHeight;
-        }
-
-        //the vertical indices:
-        var heightValues = IndicesWithSizes(verticalCategories, textBoxHeight)
-            .Select((v, i) => AccumulatedIndexSizes(v, startingY, verticalScrollBarValue));
-
-        int yTextBounds = horizontalCategories.Count * textBoxHeight + textBoxHeight;
-
-        //FixMe: When index goes off panel this throws an exception.
-        var verticalLineLength = heightValues.First().Last().AccumulatedSize;
-        var horizontalLineX = 0;
-        var verticalLineX = textBoxWidth;
-        var verticalTextX = 0;
-        foreach (var innerHeights in heightValues)
-        {
-            //draw all the vertical lines of the vertical indices:
-            g.DrawLine(pen, new Point(verticalLineX, startingY), new Point(verticalLineX, verticalLineLength));
-            verticalLineX += textBoxWidth;
-            //draw all the horizontal lines of the vertical indices:
-            foreach (var (index, accumulatedHeight, height) in innerHeights)
-            {
-                g.DrawLine(pen, new Point(horizontalLineX, accumulatedHeight), new Point(horizontalLineX + textBoxWidth, accumulatedHeight));
-                var y = Math.Max(yTextBounds, accumulatedHeight - height);
-                g.DrawString(index, base.Font, brush, new Point(verticalTextX, y));
-            }
-            horizontalLineX += textBoxWidth;
-            verticalTextX += textBoxWidth;
-        }
+        var (totalWidth, horizontalCategoryRows) = CalculateHorizontalIndices(startingX);
+        DrawCategoryRows(g, pen, brush, horizontalCategoryRows);
+        var (totalLength, verticalCategoryRows) = CalculateVerticalIndices(startingY);
+        DrawCategoryRows(g, pen, brush, verticalCategoryRows);
 
         //Ponder: should these values be constant (a sliding window looking at a constant state) or not?
-        SetScrollBarValues(horizontalLineLength, verticalLineLength);//FutureExperiment: Try hard coding the values.
+        SetScrollBarValues(totalWidth, totalLength);
 
         //DrawCellLines(g, pen, brush, startingX, startingY);
 
@@ -399,6 +348,167 @@ public partial class Frm_main : Form
         //    }
         //    height += tbHeigth;
         //}
+    }
+
+    (int totalWidth, List<CategoryRow> columns) CalculateHorizontalIndices(int startingX)
+    {
+        List<CategoryRow> result = new();
+
+        var textBoxWidth = _tb_activeCell.Width;
+        var textBoxHeight = _tb_activeCell.Height;
+
+        var values = IndicesWithSizes(_core.HorizontalCategories, textBoxWidth)
+            .Select((v, i) => AccumulatedIndexSizes(v, startingX, _hScrollBar.Value));
+
+        //FixMe: When index goes off panel this throws an exception.
+        var lineLength = values.First().Last().AccumulatedSize;
+
+        int textBounds = _core.VerticalCategories.Count * textBoxWidth;
+        var horizontalLineY = textBoxHeight * 2;
+        var HorizontalTextY = textBoxHeight;
+        var verticalLineY = textBoxHeight;
+        foreach (var innerLengths in values)
+        {
+            //the horizontal lines of the horizontal indices:
+            LineCoordinates coordinates = new(new Point(startingX, horizontalLineY), new Point(lineLength, horizontalLineY));
+            horizontalLineY += textBoxHeight;
+            //the vertical lines of the horizontal indices:
+            List<CategoryIndex> indices = new();
+            foreach (var (index, accumulatedLength, length) in innerLengths)
+            {
+                var x = Math.Max(textBounds, accumulatedLength - length);
+                Point indexLocation = new Point(x, HorizontalTextY);
+                LineCoordinates separatorLocation = new LineCoordinates(
+                    new Point(accumulatedLength, verticalLineY),
+                    new Point(accumulatedLength, verticalLineY + textBoxHeight));
+                indices.Add(new CategoryIndex(index, indexLocation, separatorLocation));
+            }
+
+            verticalLineY += textBoxHeight;
+            HorizontalTextY += textBoxHeight;
+            result.Add(new CategoryRow(coordinates, indices));
+        }
+
+        var totalWidth = values.First().Sum(v => v.size) + startingX;
+        return (totalWidth, result);
+    }
+
+    (int totalHeight, List<CategoryRow> rows) CalculateVerticalIndices(int startingY)
+    {
+        List<CategoryRow> result = new();
+
+        var textBoxWidth = _tb_activeCell.Width;
+        var textBoxHeight = _tb_activeCell.Height;
+
+        var values = IndicesWithSizes(_core.VerticalCategories, textBoxHeight)
+            .Select((v, i) => AccumulatedIndexSizes(v, startingY, _vScrollBar.Value));
+
+        //FixMe: When index goes off panel this throws an exception.
+        var lineLength = values.First().Last().AccumulatedSize;
+
+        int textBounds = _core.HorizontalCategories.Count * textBoxHeight + textBoxHeight;
+        var horizontalLineX = 0;
+        var verticalLineX = textBoxWidth;
+        var verticalTextX = 0;
+        foreach (var innerHeights in values)
+        {
+            //the vertical lines of the vertical indices:
+            LineCoordinates coordinates = new(new Point(verticalLineX, startingY), new Point(verticalLineX, lineLength));
+            verticalLineX += textBoxWidth;
+            //the horizontal lines of the vertical indices:
+            List<CategoryIndex> indices = new();
+            foreach (var (index, accumulatedHeight, height) in innerHeights)
+            {
+                var y = Math.Max(textBounds, accumulatedHeight - height);
+                Point indexLocation = new(verticalTextX, y);
+                LineCoordinates separatorLocation = new LineCoordinates(
+                    new Point(horizontalLineX, accumulatedHeight), 
+                    new Point(horizontalLineX + textBoxWidth, accumulatedHeight));
+                indices.Add(new CategoryIndex(index, indexLocation, separatorLocation));
+            }
+            horizontalLineX += textBoxWidth;
+            verticalTextX += textBoxWidth;
+            result.Add(new CategoryRow(coordinates, indices));
+        }
+
+        var totalLength = values.First().Sum(v => v.size) + startingY;
+        return (totalLength, result);
+    }
+
+    struct CategoryRow
+    {
+        public LineCoordinates LineCoordinates;
+        public List<CategoryIndex> Indices;
+
+        public CategoryRow(LineCoordinates coordinates, List<CategoryIndex> indices)
+        {
+            LineCoordinates = coordinates;
+            Indices = indices;
+        }
+
+        public void Deconstruct(out LineCoordinates coordinates, out List<CategoryIndex> indices)
+        {
+            coordinates = LineCoordinates;
+            indices = Indices;
+        }
+    }
+
+    struct LineCoordinates
+    {
+        public Point From;
+        public Point To;
+
+        public LineCoordinates(Point from, Point to)
+        {
+            From = from;
+            To = to;
+        }
+
+        public void Deconstruct(out Point from, out Point to)
+        {
+            from = From;
+            to = To;
+        }
+    }
+
+    struct CategoryIndex
+    {
+        public string Name;
+        public Point Location;
+        public LineCoordinates SeparatorLocation;
+
+        public CategoryIndex(string name, Point location, LineCoordinates separatorLocation)
+        {
+            Name = name;
+            Location = location;
+            SeparatorLocation = separatorLocation;
+        }
+
+        public void Deconstruct(out string name, out Point location, out LineCoordinates separatorLocation)
+        {
+            name = Name;
+            location = Location;
+            separatorLocation = SeparatorLocation;
+        }
+    }
+
+    void DrawCategoryRows(
+        Graphics g,
+        Pen pen,
+        Brush brush,
+        List<CategoryRow> values)
+    {
+        foreach (var ((categoryFrom, categoryTo), indices) in values)
+        {
+            //draw the category separator:
+            g.DrawLine(pen, categoryFrom, categoryTo);
+            //draw the index separator:
+            foreach (var (text, textLocation, (indexFrom, indexTo)) in indices)
+            {
+                g.DrawLine(pen, indexFrom, indexTo);
+                g.DrawString(text, base.Font, brush, textLocation);
+            }
+        }
     }
 
     void DrawUpperCategorySeparator(Graphics g, Pen pen) =>
@@ -424,7 +534,7 @@ public partial class Frm_main : Form
         g.DrawLine(pen, new Point(0, y), new Point(x, y));
     }
 
-    List<(string index, int AccumulatedSize, int size)> AccumulatedIndexSizes(
+    static List<(string index, int AccumulatedSize, int size)> AccumulatedIndexSizes(
         List<(string index, int size)> values,
         int startingPosition,
         int offset)
@@ -438,7 +548,7 @@ public partial class Frm_main : Form
             if (offset <= cv)
             {
                 acc += cv - offset;
-                result.Add((ci ,acc, cv));
+                result.Add((ci, acc, cv));
                 AccumulatedIndexSizes2ndState();
                 return result;
             }
@@ -463,7 +573,7 @@ public partial class Frm_main : Form
         }
     }
 
-    private List<List<(string index, int size)>> IndicesWithSizes(List<string> categories, int baseSize)
+    List<List<(string index, int size)>> IndicesWithSizes(List<string> categories, int baseSize)
     {
         List<List<(string, int)>> result = new();
         var countsAndSizes = IndexCountsAndSizes(categories, baseSize);
