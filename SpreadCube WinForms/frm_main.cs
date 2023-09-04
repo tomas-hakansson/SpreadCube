@@ -284,9 +284,6 @@ public partial class Frm_main : Form
         var spreadsheetPanelWidth = _pnl_Spreadsheet.Width;
         var spreadsheetPanelHeight = _pnl_Spreadsheet.Height;
 
-        var horizontalScrollBarValue = _hScrollBar.Value;
-        var verticalScrollBarValue = _vScrollBar.Value;
-
         var startingX = verticalCategories.Count * textBoxWidth;
         var startingY = textBoxHeight + horizontalCategories.Count * textBoxHeight;
 
@@ -325,11 +322,23 @@ public partial class Frm_main : Form
         DrawCornerBox(g, pen);
         var (totalWidth, horizontalCategoryRows) = CalculateHorizontalIndices(startingX);
         DrawCategoryRows(g, pen, brush, horizontalCategoryRows);
-        var (totalLength, verticalCategoryRows) = CalculateVerticalIndices(startingY);
+        var (totalHeight, verticalCategoryRows) = CalculateVerticalIndices(startingY);
         DrawCategoryRows(g, pen, brush, verticalCategoryRows);
 
+        //draw the content cells:
+        int variableTotalLength = horizontalCategoryRows.First().LineCoordinates.To.X;
+        var verticalIndices = verticalCategoryRows.Last().Indices;
+        foreach (var (_, _, (_, startingPoint)) in verticalIndices)
+            g.DrawLine(pen, startingPoint, new Point(variableTotalLength, startingPoint.Y));
+
+        int variableTotalWidth = verticalCategoryRows.First().LineCoordinates.To.Y;
+        var horizontalIndices = horizontalCategoryRows.Last().Indices;
+        foreach (var (_, _, (_, startingPoint)) in horizontalIndices)
+            g.DrawLine(pen, startingPoint, new Point(startingPoint.X, variableTotalWidth));
+
+
         //Ponder: should these values be constant (a sliding window looking at a constant state) or not?
-        SetScrollBarValues(totalWidth, totalLength);
+        SetScrollBarValues(totalWidth, totalHeight);//The maximum to scroll is the size of the unseen part!!!!!!!!!!!!!!!!
 
         //DrawCellLines(g, pen, brush, startingX, startingY);
 
@@ -422,7 +431,7 @@ public partial class Frm_main : Form
                 var y = Math.Max(textBounds, accumulatedHeight - height);
                 Point indexLocation = new(verticalTextX, y);
                 LineCoordinates separatorLocation = new LineCoordinates(
-                    new Point(horizontalLineX, accumulatedHeight), 
+                    new Point(horizontalLineX, accumulatedHeight),
                     new Point(horizontalLineX + textBoxWidth, accumulatedHeight));
                 indices.Add(new CategoryIndex(index, indexLocation, separatorLocation));
             }
@@ -645,8 +654,7 @@ public partial class Frm_main : Form
 
         //SmallChange and LargeChange: Per UI guidelines, these must be set
         //    relative to the size of the view that the user sees, not to
-        //    the total size including the unseen part.  In this example,
-        //    these must be set relative to the picture box, not to the image.
+        //    the total size including the unseen part.
 
         //Maximum: Calculate in steps:
         //Step 1: The maximum to scroll is the size of the unseen part.
