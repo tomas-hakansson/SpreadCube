@@ -298,10 +298,34 @@ public partial class Frm_main : Form
         //g.DrawString("Hscroll value: ", Font, brush, 0, 16);
         //g.DrawString(_hScrollBar.Value.ToString(), Font, brush, 120, 16);
 
-        //todo:
-        //  simple experiments to figure out scrollbars.
-        //      figure out how I want scrolling to work
-        //      figure out how to draw parts of characters 
+        int totalWidth = 0;
+        int variableTotalWidth;
+        List<CategoryRow> horizontalCategoryRows = new();
+        List<CategoryIndex> horizontalIndices = new();
+        if (horizontalCategories.Count > 0)
+        {
+            (totalWidth, horizontalCategoryRows) = CalculateHorizontalIndices(startingX);
+            variableTotalWidth = horizontalCategoryRows.First().LineCoordinates.To.X;
+            horizontalIndices = horizontalCategoryRows.Last().Indices;
+        }
+        else
+            variableTotalWidth = startingX + textBoxWidth;
+
+        int totalHeight = 0;
+        int variableTotalHeight;
+        List<CategoryRow> verticalCategoryRows = new();
+        List<CategoryIndex> verticalIndices = new();
+        if (verticalCategories.Count > 0)
+        {
+            (totalHeight, verticalCategoryRows) = CalculateVerticalIndices(startingY);
+            variableTotalHeight = verticalCategoryRows.First().LineCoordinates.To.Y;
+            verticalIndices = verticalCategoryRows.Last().Indices;
+        }
+        else
+            variableTotalHeight = startingY + textBoxHeight;
+
+
+        //draw:
 
         var nrOfHCats = horizontalCategories.Count;
         var catWidth = nrOfHCats * textBoxWidth;
@@ -316,29 +340,31 @@ public partial class Frm_main : Form
         foreach (var item in categoryListValues)
             DrawCategories(g, pen, brush, item.startingX, item.startingY, item.endingY, item.areaType);
 
-        DrawUpperCategorySeparator(g, pen);
-        DrawLowerCategorySeparator(g, pen);
-
-        DrawCornerBox(g, pen);
-        var (totalWidth, horizontalCategoryRows) = CalculateHorizontalIndices(startingX);
-        DrawCategoryRows(g, pen, brush, horizontalCategoryRows);
-        var (totalHeight, verticalCategoryRows) = CalculateVerticalIndices(startingY);
-        DrawCategoryRows(g, pen, brush, verticalCategoryRows);
-
-        //draw the content cells:
-        int variableTotalLength = horizontalCategoryRows.First().LineCoordinates.To.X;
-        var verticalIndices = verticalCategoryRows.Last().Indices;
-        foreach (var (_, _, (_, startingPoint)) in verticalIndices)
-            g.DrawLine(pen, startingPoint, new Point(variableTotalLength, startingPoint.Y));
-
-        int variableTotalWidth = verticalCategoryRows.First().LineCoordinates.To.Y;
-        var horizontalIndices = horizontalCategoryRows.Last().Indices;
-        foreach (var (_, _, (_, startingPoint)) in horizontalIndices)
-            g.DrawLine(pen, startingPoint, new Point(startingPoint.X, variableTotalWidth));
-
-
         //Ponder: should these values be constant (a sliding window looking at a constant state) or not?
         SetScrollBarValues(totalWidth, totalHeight);//The maximum to scroll is the size of the unseen part!!!!!!!!!!!!!!!!
+
+        DrawUpperCategorySeparator(g, pen);
+        DrawLowerCategorySeparator(g, pen);
+        DrawCornerBox(g, pen);
+
+        if (horizontalCategories.Count > 0)
+        {
+            DrawCategoryRows(g, pen, brush, horizontalCategoryRows);
+            foreach (var (_, _, (_, startingPoint)) in horizontalIndices)
+                g.DrawLine(pen, startingPoint, new Point(startingPoint.X, variableTotalHeight));
+        }
+        else
+            g.DrawLine(pen, new Point(variableTotalWidth, textBoxHeight), new Point(variableTotalWidth, variableTotalHeight));
+
+        if (verticalCategories.Count > 0)
+        {
+            DrawCategoryRows(g, pen, brush, verticalCategoryRows);
+            foreach (var (_, _, (_, startingPoint)) in verticalIndices)
+                g.DrawLine(pen, startingPoint, new Point(variableTotalWidth, startingPoint.Y));
+        }
+        else
+            g.DrawLine(pen, new Point(0, variableTotalHeight), new Point(variableTotalWidth, variableTotalHeight));
+
 
         //DrawCellLines(g, pen, brush, startingX, startingY);
 
