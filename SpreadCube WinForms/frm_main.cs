@@ -287,16 +287,17 @@ public partial class Frm_main : Form
         var startingX = verticalCategories.Count * textBoxWidth;
         var startingY = textBoxHeight + horizontalCategories.Count * textBoxHeight;
 
+        {//test code:
+            //g.DrawString("width value: ", Font, brush, 0, 0);
+            //g.DrawString(_pnl_Spreadsheet.Width.ToString(), Font, brush, 120, 0);
+            //g.DrawString("height value: ", Font, brush, 0, 16);
+            //g.DrawString(_pnl_Spreadsheet.Height.ToString(), Font, brush, 120, 16);
 
-        //g.DrawString("width value: ", Font, brush, 0, 0);
-        //g.DrawString(_pnl_Spreadsheet.Width.ToString(), Font, brush, 120, 0);
-        //g.DrawString("height value: ", Font, brush, 0, 16);
-        //g.DrawString(_pnl_Spreadsheet.Height.ToString(), Font, brush, 120, 16);
-
-        //g.DrawString("Vscroll value: ", Font, brush, 0, 0);
-        //g.DrawString(_vScrollBar.Value.ToString(), Font, brush, 120, 0);
-        //g.DrawString("Hscroll value: ", Font, brush, 0, 16);
-        //g.DrawString(_hScrollBar.Value.ToString(), Font, brush, 120, 16);
+            //g.DrawString("Vscroll value: ", Font, brush, 0, 0);
+            //g.DrawString(_vScrollBar.Value.ToString(), Font, brush, 120, 0);
+            //g.DrawString("Hscroll value: ", Font, brush, 0, 16);
+            //g.DrawString(_hScrollBar.Value.ToString(), Font, brush, 120, 16);
+        }
 
         int totalWidth = 0;
         int variableTotalWidth;
@@ -341,7 +342,8 @@ public partial class Frm_main : Form
             DrawCategories(g, pen, brush, item.startingX, item.startingY, item.endingY, item.areaType);
 
         //Ponder: should these values be constant (a sliding window looking at a constant state) or not?
-        SetScrollBarValues(totalWidth, totalHeight);//The maximum to scroll is the size of the unseen part!!!!!!!!!!!!!!!!
+        //The maximum to scroll is the size of the unseen part!!!!!!!!!!!!!!!!
+        SetScrollBarValues(Math.Max(0, totalWidth - _pnl_Spreadsheet.Width), Math.Max(0, totalHeight - _pnl_Spreadsheet.Height));
 
         DrawUpperCategorySeparator(g, pen);
         DrawLowerCategorySeparator(g, pen);
@@ -396,6 +398,7 @@ public partial class Frm_main : Form
             .Select((v, i) => AccumulatedIndexSizes(v, startingX, _hScrollBar.Value));
 
         //FixMe: When index goes off panel this throws an exception.
+        //          This can also happen as you move categories around thusly changing the shape.
         var lineLength = values.First().Last().AccumulatedSize;
 
         int textBounds = _core.VerticalCategories.Count * textBoxWidth;
