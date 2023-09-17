@@ -13,6 +13,9 @@ public partial class Frm_main : Form
 
     Dictionary<Rectangle, IArea> _guiRectangleToArea;
 
+    List<List<(string index, int size)>> _horizontalIndexSizes = new();
+    List<List<(string index, int size)>> _verticalIndexSizes = new();
+
     public Frm_main()
     {
         _pnl_Spreadsheet = new();
@@ -30,6 +33,8 @@ public partial class Frm_main : Form
 
     void Initialise()
     {
+        CalculateIndexSizes();
+
         // A panel that we can draw our spreadsheet on:
         _pnl_Spreadsheet.Name = nameof(_pnl_Spreadsheet);
         _pnl_Spreadsheet.TabIndex = 2;
@@ -47,13 +52,13 @@ public partial class Frm_main : Form
         //_vScrollBar.LargeChange = 50;//along with the maximum value, affects the size of the movable bar.
         //this is how we use scroll bars:
         //https://stackoverflow.com/a/17971078
-        _vScrollBar.ValueChanged += new EventHandler(ScrollBar__ValueChanged);
+        _vScrollBar.ValueChanged += new EventHandler(VerticalScrollBar__ValueChanged);
         Controls.Add(_vScrollBar);
 
         // Horizontal scroll bar:
         _hScrollBar.Name = nameof(_hScrollBar);
         _hScrollBar.Dock = DockStyle.Bottom;
-        _hScrollBar.ValueChanged += new EventHandler(ScrollBar__ValueChanged);
+        _hScrollBar.ValueChanged += new EventHandler(HorizontalScrollBar__ValueChanged);
         Controls.Add(_hScrollBar);
 
 
@@ -211,6 +216,7 @@ public partial class Frm_main : Form
                 categoryArea.Cell is DropCell dropCell)
             {
                 _core.MoveCategory(_draggedCategory, _draggedCategoryListType.Value, categoryList, dropCell.Index);
+                CalculateIndexSizes();
                 Refresh();
             }
 
@@ -219,12 +225,25 @@ public partial class Frm_main : Form
         }
     }
 
+    void CalculateIndexSizes()
+    {
+        if (_core.HorizontalCategories.Count > 0)
+            _horizontalIndexSizes = IndicesWithSizes(_core.HorizontalCategories, _tb_activeCell.Width);
+        if (_core.VerticalCategories.Count > 0)
+            _verticalIndexSizes = IndicesWithSizes(_core.VerticalCategories, _tb_activeCell.Height);
+    }
+
     void Pnl_Spreadsheet__Resize(object? sender, EventArgs e)
     {
         _pnl_Spreadsheet.Invalidate();
     }
 
-    void ScrollBar__ValueChanged(object? sender, EventArgs e)
+    void HorizontalScrollBar__ValueChanged(object? sender, EventArgs e)
+    {
+        _pnl_Spreadsheet.Invalidate();
+    }
+
+    void VerticalScrollBar__ValueChanged(object? sender, EventArgs e)
     {
         _pnl_Spreadsheet.Invalidate();
     }
@@ -325,6 +344,9 @@ public partial class Frm_main : Form
         else
             variableTotalHeight = startingY + textBoxHeight;
 
+        //Ponder: should these values be constant (a sliding window looking at a constant state) or not?
+        //The maximum to scroll is the size of the unseen part!!!!!!!!!!!!!!!!
+        SetScrollBarValues(Math.Max(0, totalWidth - _pnl_Spreadsheet.Width), Math.Max(0, totalHeight - _pnl_Spreadsheet.Height));
 
         //draw:
 
@@ -340,10 +362,6 @@ public partial class Frm_main : Form
 
         foreach (var item in categoryListValues)
             DrawCategories(g, pen, brush, item.startingX, item.startingY, item.endingY, item.areaType);
-
-        //Ponder: should these values be constant (a sliding window looking at a constant state) or not?
-        //The maximum to scroll is the size of the unseen part!!!!!!!!!!!!!!!!
-        SetScrollBarValues(Math.Max(0, totalWidth - _pnl_Spreadsheet.Width), Math.Max(0, totalHeight - _pnl_Spreadsheet.Height));
 
         DrawUpperCategorySeparator(g, pen);
         DrawLowerCategorySeparator(g, pen);
@@ -394,8 +412,7 @@ public partial class Frm_main : Form
         var textBoxWidth = _tb_activeCell.Width;
         var textBoxHeight = _tb_activeCell.Height;
 
-        var values = IndicesWithSizes(_core.HorizontalCategories, textBoxWidth)
-            .Select((v, i) => AccumulatedIndexSizes(v, startingX, _hScrollBar.Value));
+        var values = _horizontalIndexSizes.Select((v, i) => AccumulatedIndexSizes(v, startingX, _hScrollBar.Value));
 
         //FixMe: When index goes off panel this throws an exception.
         //          This can also happen as you move categories around thusly changing the shape.
@@ -438,10 +455,10 @@ public partial class Frm_main : Form
         var textBoxWidth = _tb_activeCell.Width;
         var textBoxHeight = _tb_activeCell.Height;
 
-        var values = IndicesWithSizes(_core.VerticalCategories, textBoxHeight)
-            .Select((v, i) => AccumulatedIndexSizes(v, startingY, _vScrollBar.Value));
+        var values = _verticalIndexSizes.Select((v, i) => AccumulatedIndexSizes(v, startingY, _vScrollBar.Value));
 
         //FixMe: When index goes off panel this throws an exception.
+        //          This can also happen as you move categories around thusly changing the shape.
         var lineLength = values.First().Last().AccumulatedSize;
 
         int textBounds = _core.HorizontalCategories.Count * textBoxHeight + textBoxHeight;
