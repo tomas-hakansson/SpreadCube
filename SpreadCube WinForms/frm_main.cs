@@ -191,12 +191,15 @@ public partial class Frm_main : Form
             {
                 case AreaType.HorizontalCategories:
                     MoveCategory(CategoryListType.Horizontal);
+                    //CalculateIndexSizes();
                     break;
                 case AreaType.VerticalCategories:
                     MoveCategory(CategoryListType.Vertical);
+                    //CalculateIndexSizes();
                     break;
                 case AreaType.HiddenCategories:
                     MoveCategory(CategoryListType.Hidden);
+                    //CalculateIndexSizes();
                     break;
                 case AreaType.HorizontalIndices:
                 case AreaType.VerticalIndices:
